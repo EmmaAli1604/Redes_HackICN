@@ -129,14 +129,14 @@ def get_day_20251010():
 
 
 
-print("Branches")
-print(branches_20251010.head())
+# print("Branches")
+# print(branches_20251010.head())
 
-print("generadores")
-print(generators_20251010.head())
+# print("generadores")
+# print(generators_20251010.head())
 
-print("loads")
-print(loads_20251010.head())
+# print("loads")
+# print(loads_20251010.head())
 
-dataframe = get_day_20240521()
-print(dataframe)
+# dataframe = get_day_20240521()
+# print(dataframe)
