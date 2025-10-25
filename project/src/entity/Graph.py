@@ -20,7 +20,14 @@ class Graph:
     def es_monitoreado(self, i:int, j: int):
         return self.adyacencias[i][j][1]
 
+    def get_cost(self):
+        pass
 
+    def get_cost(self):
+        pass
+
+    def get_reactancia (self, i: int ,j : int):
+        return 1 / self.matrizSubscetancia[i][j]
 
         
 
