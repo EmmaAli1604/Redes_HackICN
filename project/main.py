@@ -9,7 +9,6 @@ from src.entity.SA import SA
 import random as rnd
 import copy
 from src.outputs import csv_branch_output    
-=======
 
 from src.performance_metrics import start_metrics, finish_metrics
 
@@ -17,8 +16,7 @@ from src.performance_metrics import start_metrics, finish_metrics
 start_metrics()
     
 # basic dayli-data read
-df_branch, df_generator, df_load = get_day_20240521()
-
+df_branch, df_generator, df_load = get_day_20250606()
 matrix = AdjacencyMatrix(df_branch)
 generator = Generator(df_generator)
 nodes_gen = generator.get_nodes()
@@ -50,7 +48,7 @@ init_temperature = InitialTemperature(
 temperature = init_temperature.get_initial_t(config.limit)
 print("--- [temp] Temperatura inicial ")
 print(temperature)
-random = rnd.Random(0)
+random = rnd.Random(config.seed)
 sa = SA(
     temperature, 
     config.cooling_rate, 
