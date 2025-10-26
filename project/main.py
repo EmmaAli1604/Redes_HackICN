@@ -8,6 +8,11 @@ from src.entity.NetworkSolution import NetworkSolution
 from src.entity.SA import SA
 import random as rnd
 
+from src.performance_metrics import start_metrics, finish_metrics
+
+# DO not delete -> performance metrics
+start_metrics()
+    
 # basic dayli-data read
 df_branch, df_generator, df_load = get_day_20240521()
 
@@ -53,3 +58,6 @@ sa = SA(
 sa.accept_threshold()
 print(sa.get_best_solution())
 # print(decisive_nodes)
+
+# # DO not delete -> performance metrics
+result = finish_metrics("metrics.csv")
