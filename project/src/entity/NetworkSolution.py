@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import Graph
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
+import random 
 
 class NetworkSolution:
     """
@@ -27,10 +28,10 @@ class NetworkSolution:
         """
         self.vertices = vertices
         self.graph = graph
-        size = len(vertices)
+        self.size = len(vertices)
 
         # Initialize matrix of tuples (float, float, bool)
-        self.characterized_matrix = np.empty((size, size, bool), dtype=object)
+        self.characterized_matrix = np.empty((self.size, self.size, bool), dtype=object)
 
         # Fill the matrix with (value_b, value_character_b, True)
         for i in range(size):
@@ -42,18 +43,74 @@ class NetworkSolution:
                 )
 
         # Normalization coefficient
-        self.normalize = size * size * alpha
+        self.normalize = self.size * self.size * alpha
         
 
 
-    def neighbour(self) -> Tuple[str,float]:
-        """
-        Generate a neighboring solution by applying a small random modification
-        to the current network configuration.
-        """
-        pass
 
-    def update(self, neighbour : Tuple):
+class NetworkSolution:
+    def neighbour(self, rng: random.Random) -> List[Tuple[str, float, int, int, float]]:
+        """
+        Generate a neighboring solution (remove_node, new_cost, neighborA_index, neighborB_index, suspect_A_B)
+        by applying a small random modification to the current network configuration.
+        """
+        neighbour = ["", -1.0]
+        size = self.size
+
+        # Select a random node index to remove
+        remove_node_index = rng.randint(0, size - 1)
+        remove_node = list(self.vertices.keys())[remove_node_index]
+
+        # Check if node is important or has high degree
+        if self.graph.is_important(remove_node) and self.graph.get_grade_by_node(remove_node) != 2:
+            return neighbour
+
+        # Find the two connected neighbors
+        vecino = [-1, -1]
+        for i in range(size):
+            if self.characterized_matrix[remove_node_index, i][0] != 0:
+                if vecino[0] == -1:
+                    vecino[0] = i
+                else:
+                    vecino[1] = i
+
+        # Retrieve the characterized tuples
+        characterized_A_remove_node = self.characterized_matrix[vecino[0], remove_node_index]
+        characterized_B_remove_node = self.characterized_matrix[vecino[1], remove_node_index]
+        characterized_A_B = self.characterized_matrix[vecino[0], vecino[1]]
+
+        # Compute equivalent reactances
+        reactancia_A_remove_node = 1 / characterized_A_remove_node[0]
+        reactancia_B_remove_node = 1 / characterized_B_remove_node[0]
+        suspect_A_B = reactancia_A_remove_node + reactancia_B_remove_node
+        Bp = -1 / suspect_A_B
+
+        # Remove node connections temporarily
+        self.characterized_matrix[remove_node_index, vecino[0]] = self.characterized_matrix[vecino[0], remove_node_index] = [0.0, 0.0, False]
+        self.characterized_matrix[remove_node_index, vecino[1]] = self.characterized_matrix[vecino[1], remove_node_index] = [0.0, 0.0, False]
+        self.characterized_matrix[vecino[0], vecino[1]] = self.characterized_matrix[vecino[1], vecino[0]] = [suspect_A_B, Bp, True]
+
+        # Update diagonal temporarily
+        diagonal = self.characterized_matrix[remove_node_index, remove_node_index][1]
+        self.characterized_matrix[remove_node_index, remove_node_index][1] = (
+            diagonal - (characterized_A_remove_node[1] + characterized_B_remove_node[1] + characterized_A_B[1]) + suspect_A_B
+        )
+
+        # Compute cost
+        new_cost = self.get_cost()
+
+        # Restore original connections
+        self.characterized_matrix[remove_node_index, vecino[0]] = self.characterized_matrix[vecino[0], remove_node_index] = characterized_A_remove_node
+        self.characterized_matrix[remove_node_index, vecino[1]] = self.characterized_matrix[vecino[1], remove_node_index] = characterized_B_remove_node
+        self.characterized_matrix[vecino[0], vecino[1]] = self.characterized_matrix[vecino[1], vecino[0]] = characterized_A_B
+        self.characterized_matrix[remove_node_index, remove_node_index][1] = diagonal
+
+        # Build and return neighbor
+        neighbour = [remove_node, new_cost, vecino[0], vecino[1], suspect_A_B]
+        return neighbour
+
+
+    def update(self, neighbour : list[str,float, int, int,float]):
         """
         Update the state of a specific vertex or the normalization factor
         depending on the provided parameters.
@@ -74,5 +131,14 @@ class NetworkSolution:
         of the current network configuration.
         """
         
-        0.0
+        difference = 0.0
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.characterized_matrix[i,j][2]:
+                    continue
+
+                difference += abs(self.characterized_matrix[i,j][0] - self.graph.get_B(i,j))
+    
+        return difference/self.normalize
+
 
