@@ -6,10 +6,11 @@ branch, generator, load = get_day_20240521()
 # print(branch.head())
 
 branch_ = Branch(branch)
+Branch.summary(branch_)
 
 # print(branch_.head())
 # Mostrar resumen
-print(Branch.summary(branch_))
+# print(Branch.summary(branch_))
 
 # Obtener matriz como DataFrame
 # print("\n=== Matriz de Susceptancias ===")
