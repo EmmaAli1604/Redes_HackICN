@@ -153,9 +153,6 @@ class NetworkSolution:
         
         # 1. Actualiza el tamaño
         self.size -= 1
-        
-        # 2. Quita el nodo de la lista de disponibles
-        self.available_nodes.remove(C) 
 
         # 3. "Descontamina" el costo
         new_total_cost = neighbour[1]
