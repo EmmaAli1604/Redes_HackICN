@@ -11,11 +11,8 @@ class NetworkSolution:
     """
 
     def __init__(self,
-                 vertices: Dict,
-                 matrix_b: np.ndarray,
-                 matrix_character_b: np.ndarray,
                  graph: Graph,
-                 alpha: float):
+                 ):
         """
         Initialize the network solution using a vertex dictionary, numeric and boolean matrices,
         and a normalization coefficient.
@@ -26,119 +23,124 @@ class NetworkSolution:
             matrix_character_b (np.ndarray): NxN boolean matrix.
             alpha (float): Normalization factor.
         """
-        self.vertices = vertices
         self.graph = graph
-        self.size = len(vertices)
-
-        # Initialize matrix of tuples (float, float, bool)
-        self.characterized_matrix = np.empty((self.size, self.size, bool), dtype=object)
-
-        # Fill the matrix with (value_b, value_character_b, True)
-        for i in range(size):
-            for j in range(size):
-                self.characterized_matrix[i, j] = (
-                    matrix_b[i, j],
-                    matrix_character_b[i, j],
-                    matrix_b[i,j] != 0
-                )
+        self.graph.original = graph 
+        self.size = graph.getN_buses()
 
         # Normalization coefficient
-        self.normalize = self.size * self.size * alpha
+        self.normalize = self.size * self.size * 10
+        self.cost = -1.0
         
-
-
-
-class NetworkSolution:
-    def neighbour(self, rng: random.Random) -> List[Tuple[str, float, int, int, float]]:
+    def neighbour(self, rng: random.Random) -> List[Tuple[int, float, int, int, Tuple[float,float]]]:
         """
         Generate a neighboring solution (remove_node, new_cost, neighborA_index, neighborB_index, suspect_A_B)
         by applying a small random modification to the current network configuration.
         """
-        neighbour = ["", -1.0]
+        neighbour = [-1, -1.0, -1, -1, -1.0]
         size = self.size
+        
+        #Nodo a eliminar
+        C = self.get_random_node(rng)
 
-        # Select a random node index to remove
-        remove_node_index = rng.randint(0, size - 1)
-        remove_node = list(self.vertices.keys())[remove_node_index]
-
-        # Check if node is important or has high degree
-        if self.graph.is_important(remove_node) and self.graph.get_grade_by_node(remove_node) != 2:
+        if self.graph.is_important(C) and self.graph.get_grade_by_node(C) != 2 and not(self.is_node_nin_graph(C)):
             return neighbour
+    
+        neighbour_c = self.graph.get_vecino_by_node(C)
+        
+        A = neighbour_c[0]
+        B = neighbour_c[1]
 
-        # Find the two connected neighbors
-        vecino = [-1, -1]
-        for i in range(size):
-            if self.characterized_matrix[remove_node_index, i][0] != 0:
-                if vecino[0] == -1:
-                    vecino[0] = i
-                else:
-                    vecino[1] = i
+        #Caracterizacion de los nodos A,B,C y guardarlos
+        characterized_A_C = [self.get_b(A,C), self.get_b_prime(A,C)]
+        characterized_B_C = [self.get_b(B,C), self.get_b_prime(B,C)]
+        characterized_A_B = [self.get_b(A,B), self.get_b_prime(A,B)]
 
-        # Retrieve the characterized tuples
-        characterized_A_remove_node = self.characterized_matrix[vecino[0], remove_node_index]
-        characterized_B_remove_node = self.characterized_matrix[vecino[1], remove_node_index]
-        characterized_A_B = self.characterized_matrix[vecino[0], vecino[1]]
+        # Reactancia de A-C y B-C
+        reactancia_A_C = 1 / characterized_A_C[0]
+        reactancia_B_C = 1 / characterized_B_C[0]
+        reactancia_A_B = 1 / characterized_A_B[0]
 
-        # Compute equivalent reactances
-        reactancia_A_remove_node = 1 / characterized_A_remove_node[0]
-        reactancia_B_remove_node = 1 / characterized_B_remove_node[0]
-        suspect_A_B = reactancia_A_remove_node + reactancia_B_remove_node
-        Bp = -1 / suspect_A_B
+        # Calculamos el nuevo suspect A y B dado C: B_ab = x_ab+x_ac+x_bc
+        suspect_A_B = [1/(reactancia_A_C + reactancia_B_C + reactancia_A_B) + characterized_A_B[1],0]
+        # Calculamos el nuevo B' de A y B
+        suspect_A_B[1] = -suspect_A_B[0]
 
-        # Remove node connections temporarily
-        self.characterized_matrix[remove_node_index, vecino[0]] = self.characterized_matrix[vecino[0], remove_node_index] = [0.0, 0.0, False]
-        self.characterized_matrix[remove_node_index, vecino[1]] = self.characterized_matrix[vecino[1], remove_node_index] = [0.0, 0.0, False]
-        self.characterized_matrix[vecino[0], vecino[1]] = self.characterized_matrix[vecino[1], vecino[0]] = [suspect_A_B, Bp, True]
+        # Actualizamos matrix (simulacion de quitar branch)
+        self.set_branch(A,C,[0.0,0.0])
+        self.set_branch(B,C,[0.0,0.0])
+        self.set_branch(A,B,suspect_A_B)
 
-        # Update diagonal temporarily
-        diagonal = self.characterized_matrix[remove_node_index, remove_node_index][1]
-        self.characterized_matrix[remove_node_index, remove_node_index][1] = (
-            diagonal - (characterized_A_remove_node[1] + characterized_B_remove_node[1] + characterized_A_B[1]) + suspect_A_B
-        )
+        diagonal = self.get_b_prime(C,C)
+        self.graph.set_branch_prime(C,C,(
+            diagonal - (characterized_A_C[1] + characterized_A_B[0] + characterized_B_C[0]) + suspect_A_B[0]
+        ))
 
-        # Compute cost
+        old_cost = self.cost
         new_cost = self.get_cost()
 
-        # Restore original connections
-        self.characterized_matrix[remove_node_index, vecino[0]] = self.characterized_matrix[vecino[0], remove_node_index] = characterized_A_remove_node
-        self.characterized_matrix[remove_node_index, vecino[1]] = self.characterized_matrix[vecino[1], remove_node_index] = characterized_B_remove_node
-        self.characterized_matrix[vecino[0], vecino[1]] = self.characterized_matrix[vecino[1], vecino[0]] = characterized_A_B
-        self.characterized_matrix[remove_node_index, remove_node_index][1] = diagonal
+        neighbour = [C, new_cost, A,B,suspect_A_B]
 
-        # Build and return neighbor
-        neighbour = [remove_node, new_cost, vecino[0], vecino[1], suspect_A_B]
+        self.cost = old_cost
+        self.set_branch(A,C,characterized_A_C)
+        self.set_branch(A,B,characterized_A_B)
+        self.set_branch(B,C,characterized_B_C)
+
         return neighbour
 
+    def get_b_prime(self, nodeA: int, nodeB: int) -> float:
+        return self.graph.get_branch(nodeA, nodeB)[0]
+    
+    def get_b(self, nodeA: int, nodeB: int) -> float:
+        return self.graph.get_branch(nodeA, nodeB)[0]
+    
+    def get_b_original(self, nodeA: int, nodeB: int) -> float:
+        return self.graph_original.get_branch(nodeA,nodeB)[0]
+    
+    def get_random_node(self, rng : random.Random) -> int:
+        return self.graph.get_node_by_index(rng.randint(0,self.size))
+    
+    def set_branch(self, nodeA :int, nodeB : int, branch: Tuple[float,float]):
+        self.graph.set_branch(nodeA,nodeB,branch[0])
+        self.graph.set_branch_prime(nodeA,nodeB,branch[1])
 
-    def update(self, neighbour : list[str,float, int, int,float]):
+    def is_node_nin_graph(self,node : int) -> bool:
+        return self.graph.get_grade_by_node(node) == 0
+
+    
+    def update(self, neighbour : list[int,float, int, int,float]):
         """
         Update the state of a specific vertex or the normalization factor
         depending on the provided parameters.
+
+        where neighbour = [C,new_cost,A,B,B_ab]
         """
         
-        # Eliminar nodo (neighbour[0] -> nodo:str) de self.vectores
+        A = neighbour[2]
+        B = neighbour[3]
+        C = neighbour[0]
+        suspect_A_B = neighbour[4]
 
-        # Marcar como false a self.characterized_matrix[2] todos las aristas que
-        # al vector self.characterized_matrix[vector][i] = self.characterized_matrix[i,vector]
-        # = false
+        self.set_branch(A,C,[0.0,0.0])
+        self.set_branch(B,C,[0.0,0.0])
+        self.set_branch(A,B,suspect_A_B)
 
-        # self.cost = neighour[1]
-
+        self.cost = neighbour[1]
 
     def get_cost(self) -> float:
         """
         Compute and return the total cost (e.g., energy, distance, or impedance)
         of the current network configuration.
         """
-        
+
         difference = 0.0
         for i in range(self.size):
             for j in range(self.size):
-                if self.characterized_matrix[i,j][2]:
+                if self.get_b(i,j) == 0:
                     continue
 
-                difference += abs(self.characterized_matrix[i,j][0] - self.graph.get_B(i,j))
+                difference += abs(self.get_b(i,j) - self.get_b_original(i,j))
     
-        return difference/self.normalize
+        self.cost = difference/self.normalize
+        return self.cost
 
 
