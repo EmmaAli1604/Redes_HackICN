@@ -78,6 +78,8 @@ class NetworkSolution:
 
         # --- CÁLCULO DE COSTO INCREMENTAL (O(1)) ---
         
+        # --- CÁLCULO DE COSTO INCREMENTAL (O(1)) ---
+        
         b_orig_AC = self.get_b_original(A,C)
         b_orig_BC = self.get_b_original(B,C)
         b_orig_AB = self.get_b_original(A,B)
@@ -86,22 +88,25 @@ class NetworkSolution:
                              abs(characterized_B_C[0] - b_orig_BC) + \
                              abs(characterized_A_B[0] - b_orig_AB)
 
-        # --- ¡¡¡BUG CRÍTICO CORREGIDO!!! ---
-        # Faltaban los términos de A-C y B-C, que se vuelven 0.0
         cost_after_change = abs(np.float64(0.0) - b_orig_AC) + \
                             abs(np.float64(0.0) - b_orig_BC) + \
                             abs(suspect_A_B[0] - b_orig_AB)
             
-        delta_cost = (cost_after_change - cost_before_change)
-        original_difference_size = self.size / self.size_original
-        self.size-=1
-        new_cost = self.cost + delta_cost - original_difference_size + self.size/self.size_original
-        self.size+=1
+        # --- CÁLCULO ---
         
-        # Llenamos la información del vecino
+        delta_cost_difference = (cost_after_change - cost_before_change)
+        
+        new_difference_cost = self.cost + delta_cost_difference
+
+        new_size = self.size - 1
+        new_size_penalty = new_size / self.size_original
+        
+        new_cost = new_difference_cost + new_size_penalty
+        
         neighbour = [C, new_cost, A, B, suspect_A_B]
 
         return neighbour
+
 
     def get_b_prime(self, nodeA: int, nodeB: int) -> np.float64:
         return self.graph.get_branch_prime(nodeA, nodeB)
@@ -116,7 +121,7 @@ class NetworkSolution:
         """
         Obtiene un ID de bus aleatorio de la red.
         """
-        random_index = rng.randint(0, self.size - 1)
+        random_index = rng.randint(0, self.size_original - 1)
         return self.graph.buses[random_index]
     
     def set_branch(self, nodeA :int, nodeB : int, branch: Tuple[float,float]):
@@ -138,15 +143,26 @@ class NetworkSolution:
         C = neighbour[0]
         suspect_A_B = neighbour[4]
 
-        # --- CAMBIO: Usar np.float64 para los valores cero ---
         zero_branch = (np.float64(0.0), np.float64(0.0))
         self.set_branch(A,C, zero_branch)
         self.set_branch(B,C, zero_branch)
         
         self.set_branch(A,B,suspect_A_B)
-        self.size-=1
+        
+        # --- ACTUALIZACIÓN DE ESTADO CORREGIDA ---
+        
+        # 1. Actualiza el tamaño
+        self.size -= 1
+        
+        # 2. Quita el nodo de la lista de disponibles
+        self.available_nodes.remove(C) 
 
-        self.cost = neighbour[1]
+        # 3. "Descontamina" el costo
+        new_total_cost = neighbour[1]
+        new_size_penalty = self.size / self.size_original
+        
+        # Almacena SOLO el costo de diferencia
+        self.cost = new_total_cost - new_size_penalty
 
 
     def get_cost(self) -> np.float64:
