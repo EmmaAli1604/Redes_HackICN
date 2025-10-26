@@ -51,8 +51,16 @@ class InitialTemperature:
         i = 0 
         
         if p < self.percentage:
+            print("<")
+            print(p < self.percentage)
             while p < self.percentage:
+                print("Algo")
+                print("Temperatura:")
+                print(self.temperature)
                 if i == limit:
+                    print("---")
+                    print(p,self.percentage)
+                    print("llego al limite p < T")
                     break
                 self.temperature *= 2.0
                 p = self._accept_percentage()
@@ -61,8 +69,12 @@ class InitialTemperature:
             t1 = self.temperature / 2.0
             t2 = self.temperature
         else:
+            print(">")
             while p > self.percentage:
+                print("Temperatura:")
+                print(self.temperature)
                 if i == limit:
+                    print("llego al limite p > T")
                     break
                 self.temperature /= 2.0
                 p = self._accept_percentage()
@@ -83,15 +95,29 @@ class InitialTemperature:
         """
         # --- CAMBIO: Usar np.float64 ---
         c = np.float64(0.0)
-        for _ in range(self.n):
+        
+        # --- CAMBIO: de un bucle 'for' a 'while' ---
+        # Necesitamos probar N *vecinos válidos*, no N *intentos*.
+        valid_neighbors_tested = 0
+        
+        while valid_neighbors_tested < self.n:
             vecino = self.solution.neighbour(self.random)
-            if vecino[0] == -1: # <-- Esto ya estaba correcto
-                continue
+            
+            if vecino[0] == -1:
+                continue # Intento fallido, no lo contamos.
+            
+            # Si llegamos aquí, el vecino es válido.
+            valid_neighbors_tested += 1 
+            
             if vecino[1] <= self.solution.get_cost() + self.temperature:
-                self.solution.update(vecino)
                 c += 1.0
-        print(c / self.n)
-        return c / self.n
+        
+        print("Vecinos comprobados:")
+        print(valid_neighbors_tested)
+        # La tasa de aceptación ahora es c / (vecinos válidos probados)
+        acceptance_rate = c / self.n 
+        print(acceptance_rate)
+        return acceptance_rate
 
     def _binary_search(self, t_1: np.float64, t_2: np.float64) -> np.float64: # <-- CAMBIO
         """

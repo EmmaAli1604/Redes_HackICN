@@ -29,7 +29,6 @@ decisive_nodes = get_decisive_branch(matrix)
 config = Config()
 network = NetworkSolution(matrix, nodes_gen, nodes_load)
 network_temperature = network
-print(config.initial_temperature)
 init_temperature = InitialTemperature(
     config.initial_temperature, 
     config.percentage, 
@@ -41,7 +40,7 @@ init_temperature = InitialTemperature(
 temperature = init_temperature.get_initial_t(config.limit)
 print("--- [temp] Temperatura inicial ")
 print(temperature)
-""" random = rnd.Random(config.seed)
+random = rnd.Random(config.seed)
 sa = SA(
     temperature, 
     config.cooling_rate, 
@@ -52,5 +51,5 @@ sa = SA(
     config.limit
 )
 sa.accept_threshold()
-print(sa.get_best_solution()) """
+print(sa.get_best_solution())
 # print(decisive_nodes)
