@@ -23,10 +23,9 @@ class NetworkSolution:
         self.graph_original = graph 
         self.generator = generator
         self.load = load
-        self.size = graph.get_n_buses()
+        self.size_original = graph.get_n_buses()
+        self.size = self.size_original
 
-        # --- CAMBIO: Usar np.float64 para el coeficiente y el costo inicial ---
-        self.normalize = np.float64(self.size * self.size * 10)
         # Usamos -1.0 como bandera para indicar que el costo no ha sido calculado
         self.cost = np.float64(-1.0) 
         
@@ -93,8 +92,11 @@ class NetworkSolution:
                             abs(np.float64(0.0) - b_orig_BC) + \
                             abs(suspect_A_B[0] - b_orig_AB)
             
-        delta_cost = (cost_after_change - cost_before_change) / self.normalize
-        new_cost = self.cost + delta_cost
+        delta_cost = (cost_after_change - cost_before_change)
+        original_difference_size = self.size / self.original_size
+        self.size-=1
+        new_cost = self.cost + delta_cost - original_difference_size + self.size/self.original_size
+        self.size+=1
         
         # Llenamos la información del vecino
         neighbour = [C, new_cost, A, B, suspect_A_B]
@@ -142,6 +144,7 @@ class NetworkSolution:
         self.set_branch(B,C, zero_branch)
         
         self.set_branch(A,B,suspect_A_B)
+        self.size-=1
 
         self.cost = neighbour[1]
 
@@ -157,7 +160,7 @@ class NetworkSolution:
         if self.cost == -1.0:
             self.calculate_cost()
 
-        return self.cost
+        return self.cost + (self.size/self.size_original) 
 
     def calculate_cost(self) -> np.float64:
         """
@@ -175,5 +178,5 @@ class NetworkSolution:
         # .data ya es un array de numpy, .sum() y np.abs() son eficientes
         difference = np.sum(np.abs(diff_matrix.data))
     
-        self.cost = difference / self.normalize
+        self.cost = difference
         return self.cost
