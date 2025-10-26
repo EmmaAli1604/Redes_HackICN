@@ -2,16 +2,36 @@ import pandas as pd
 import numpy as np
 
 def collapsing_multiedges(df):
+    """
+    Sums parallel branches (multi-edges) between the same two buses.
+    
+    This function modifies the input DataFrame in place to add, then remove, 
+    temporary columns, and updates the 'suscept' column.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame with columns 'from_bus', 'to_bus', 'suscept', etc.
+
+    Returns:
+    --------
+    pd.DataFrame
+        The DataFrame with 'suscept' values aggregated for parallel branches.
+    """
     df['bus_min'] = df[['from_bus', 'to_bus']].min(axis=1)
     df['bus_max'] = df[['from_bus', 'to_bus']].max(axis=1)
+    
+    # Sum parallel branches (transform returns the sum broadcasted to all original rows)
     df['suscept'] = df.groupby(['bus_min', 'bus_max'])['suscept'].transform('sum')
+    
+    # Remove temporary columns
     df.drop(['bus_min', 'bus_max'], axis=1, inplace=True)
     return df
 
 class Branch:
     """
     Class to manage branches of an electrical network and build
-    the bus x bus susceptance matrix.
+    the bus x bus susceptance matrix using dense NumPy arrays.
     """
     
     def __init__(self, df):
@@ -21,123 +41,112 @@ class Branch:
         Parameters:
         -----------
         df : pd.DataFrame
-            DataFrame with columns: l, branch_name, from_bus, to_bus, 
-            suscept, available, monitored
+            DataFrame with network branch information.
         """
         self.df = df.copy()
-        self.susceptance_collapsed = collapsing_multiedges(df)
+        # Note: The original collapsing_multiedges modifies self.df.copy() in place 
+        # but does not aggregate other columns (like 'monitored', 'available')
+        # like the AdjacencyMatrix implementation does.
+        self.susceptance_collapsed = collapsing_multiedges(self.df) 
+        
         self.buses = self._get_unique_buses()
         self.n_buses = len(self.buses)
 
-        self.bus_to_idx = self._create_bus_to_idx()  # Create mapping
-        #self.susceptance_matrix = self._build_susceptance_matrix()
-        # Asignar directamente
-        self.matrix, self.bus_to_index, self.index_to_bus = self.create_empty_matrix()
+        # Create bus-to-index mappings and the empty matrix
+        self.bus_to_index = {bus: idx for idx, bus in enumerate(self.buses)}
+        self.index_to_bus = {idx: bus for idx, bus in enumerate(self.buses)}
+        self.matrix = np.zeros((self.n_buses, self.n_buses))
+        
         self.fill_matrix()
         
-    def create_empty_matrix(self):
-        bus_to_index = {bus: idx for idx, bus in enumerate(self.buses)}
-        index_to_bus = {idx: bus for idx, bus in enumerate(self.buses)}
-        n = len(self.buses)
-        matrix = np.zeros((n, n))
-        
-        # print(matrix)
-        # print(bus_to_index)
-        # print(index_to_bus)
-        return matrix, bus_to_index, index_to_bus
+    # Removed create_empty_matrix as its logic is now in __init__
     
     def fill_matrix(self):
+        """
+        Populates the dense susceptance matrix using the collapsed branch data.
+        The matrix is built symmetrically.
+        """
         for _, row in self.susceptance_collapsed.iterrows():
             from_bus = row['from_bus']
             to_bus = row['to_bus']
             suscept = row['suscept']
             
-            # Convertir números de bus a índices usando el mapeo
+            # Convert bus IDs to indices
             i = self.bus_to_index[from_bus]
             j = self.bus_to_index[to_bus]
             
-            # Asignar el valor de susceptancia
+            # Assign the susceptance value (symmetric matrix)
             self.matrix[i, j] = suscept
-            
-            # Si la matrix es simétrica, también puedes hacer:
             self.matrix[j, i] = suscept
-
-    def get_buses(self):
-        return self.n_buses
 
     def _get_unique_buses(self):
         """
-        Get sorted list of unique buses from the network.
+        Gets a sorted list of unique bus IDs from the network data.
         
         Returns:
         --------
         list
-            Sorted list of unique bus IDs
+            Sorted list of unique bus IDs.
         """
         return sorted(pd.concat([self.df['from_bus'], self.df['to_bus']]).unique())
     
-    def _create_bus_to_idx(self):
-        """
-        Create a dictionary mapping bus IDs to matrix indices.
-        
-        Returns:
-        --------
-        dict
-            Dictionary {bus_id: matrix_index}
-        """
-        # print(idx for idx, bus in enumerate(self.buses))
-
-        return {bus: idx for idx, bus in enumerate(self.buses)}
+    # Removed _create_bus_to_idx as its logic is now in __init__
     
     def get_matrix(self):
-        """Return the susceptance matrix."""
+        """
+        Returns the DataFrame of branches with aggregated susceptance.
+        
+        Note: The name is misleading as it returns a DataFrame, not the matrix (self.matrix).
+        """
         return self.susceptance_collapsed
     
     def get_matrix_dataframe(self):
         """
-        Return the susceptance matrix as a DataFrame with bus indices.
+        Returns the dense susceptance matrix as a DataFrame with bus IDs as index/columns.
         """
         return pd.DataFrame(
-            self.matrix
-            # index=self.buses,
-            # columns=self.buses
+            self.matrix,
+            index=self.buses,
+            columns=self.buses
         )
     
     def get_buses(self):
-        """Return the list of buses."""
+        """Returns the list of bus IDs."""
+        # The previous version had a duplicated function name with the same signature.
+        # Keeping this one as it returns the list of IDs.
         return [int(bus) for bus in self.buses]
     
     def get_bus_index(self, bus_id):
         """
-        Get the matrix index for a given bus ID.
+        Gets the matrix index for a given bus ID.
         
         Parameters:
         -----------
         bus_id : int
-            Bus ID
+            Bus ID.
             
         Returns:
         --------
         int
-            Matrix index for the bus
+            Matrix index for the bus, or None if not found.
         """
-        return self.bus_to_idx.get(bus_id)
+        return self.bus_to_index.get(bus_id)
     
-    def get_branch_info(self, bus_from, bus_to):
+    def get_branch_info(self, bus_from: int, bus_to: int):
         """
-        Get information about branch(es) between two buses.
+        Gets information about all original branch(es) between two bus IDs.
         
         Parameters:
         -----------
         bus_from : int
-            Origin bus
+            Origin bus ID.
         bus_to : int
-            Destination bus
+            Destination bus ID.
             
         Returns:
         --------
         pd.DataFrame
-            DataFrame with branches connecting the specified buses
+            DataFrame with branches connecting the specified buses.
         """
         mask = ((self.df['from_bus'] == bus_from) & (self.df['to_bus'] == bus_to)) | \
             ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
@@ -151,4 +160,4 @@ class Branch:
         print(f"Monitored branches: {self.df['monitored'].sum()}")
         print(f"Number of unique buses: {self.n_buses}")
         print(f"Buses: {self.buses[:10]}{'...' if self.n_buses > 10 else ''}")
-        print(f"Matrix dimension: {self.susceptance_matrix.shape}")
+        print(f"Matrix dimension: {self.matrix.shape}")

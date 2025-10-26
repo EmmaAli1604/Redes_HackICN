@@ -1,11 +1,10 @@
 import random
-import numpy as np  # <-- AÑADIDO
+import numpy as np  
 from .NetworkSolution import NetworkSolution
 
 
 class InitialTemperature:
     """
-    Traducción de la estructura 'InitialTemperature' de Rust.
     Calcula la temperatura inicial para un algoritmo de Simulated Annealing.
     """
 
@@ -19,9 +18,8 @@ class InitialTemperature:
         seed: int
     ):
         """
-        Constructor de la clase'.
+        Constructor de la clase.
         """
-        # --- CAMBIO: Usar np.float64 ---
         self.temperature = np.float64(temperature)
         self.percentage = np.float64(percentage)
         self.e_p = np.float64(e_p)
@@ -30,7 +28,7 @@ class InitialTemperature:
         
         self.random = random.Random(seed)
 
-    def get_initial_t(self, limit: int) -> np.float64: # <-- CAMBIO
+    def get_initial_t(self, limit: int) -> np.float64: 
         """
         Calcula la temperatura inicial.
         """
@@ -45,8 +43,8 @@ class InitialTemperature:
             return self.temperature
 
     
-        t1: np.float64 # <-- CAMBIO (opcional, pero bueno para claridad)
-        t2: np.float64 # <-- CAMBIO (opcional)
+        t1: np.float64 
+        t2: np.float64 
         
         i = 0 
         
@@ -89,14 +87,12 @@ class InitialTemperature:
 
         return self._binary_search(t1, t2)
 
-    def _accept_percentage(self) -> np.float64: # <-- CAMBIO
+    def _accept_percentage(self) -> np.float64: 
         """
-        Método auxiliar "privado".
+        Calcula el porcentaje de aceptación de vecinos para la temperatura actual.
         """
-        # --- CAMBIO: Usar np.float64 ---
         c = np.float64(0.0)
         
-        # --- CAMBIO: de un bucle 'for' a 'while' ---
         # Necesitamos probar N *vecinos válidos*, no N *intentos*.
         valid_neighbors_tested = 0
         
@@ -114,16 +110,15 @@ class InitialTemperature:
         
         print("Vecinos comprobados:")
         print(valid_neighbors_tested)
-        # La tasa de aceptación ahora es c / (vecinos válidos probados)
+        # La tasa de aceptación es c / (vecinos válidos probados)
         acceptance_rate = c / self.n 
         print(acceptance_rate)
         return acceptance_rate
 
-    def _binary_search(self, t_1: np.float64, t_2: np.float64) -> np.float64: # <-- CAMBIO
+    def _binary_search(self, t_1: np.float64, t_2: np.float64) -> np.float64: 
         """
-        Método auxiliar "privado".
+        Método auxiliar para la búsqueda binaria de la temperatura.
         """
-        # --- CAMBIO: Usar np.float64 ---
         t_m = (t_1 + t_2) / np.float64(2.0)
         if (t_2 - t_1) < self.e_p:
             return t_m

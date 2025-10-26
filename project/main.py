@@ -9,6 +9,13 @@ from src.entity.SA import SA
 import random as rnd
 import copy
 from src.outputs import csv_branch_output    
+=======
+
+from src.performance_metrics import start_metrics, finish_metrics
+
+# DO not delete -> performance metrics
+start_metrics()
+    
 # basic dayli-data read
 df_branch, df_generator, df_load = get_day_20240521()
 
@@ -54,9 +61,8 @@ sa = SA(
     config.limit
 )
 sa.accept_threshold()
-if sa.get_best_solution() < best_cost:
-    best_cost = sa.get_best_solution()
-    print("----- NEW BEST COST -----")
-    print(sa.get_best_solution())
-    Outputs.osv_branch_output(sa.get_best_solution.get_graph()) 
-    # print(decisive_nodes)
+print(sa.get_best_solution())
+# print(decisive_nodes)
+
+# # DO not delete -> performance metrics
+result = finish_metrics("metrics.csv")
