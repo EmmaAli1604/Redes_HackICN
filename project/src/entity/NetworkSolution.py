@@ -93,7 +93,7 @@ class NetworkSolution:
                             abs(suspect_A_B[0] - b_orig_AB)
             
         delta_cost = (cost_after_change - cost_before_change)
-        original_difference_size = self.size / self.original_size
+        original_difference_size = self.size / self.size_original
         self.size-=1
         new_cost = self.cost + delta_cost - original_difference_size + self.size/self.original_size
         self.size+=1
