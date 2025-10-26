@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from src.utils.reading import *
 from src.adjacency_matrix import AdjacencyMatrix
 from src.generator import Generator
@@ -21,3 +22,13 @@ def get_decisive_branch(matrix):
 
 decisive_nodes = get_decisive_branch(matrix)
 # print(decisive_nodes)
+=======
+import src.utils.Config
+import src.utils.reading
+import src.entity.Graph
+import src.entity.InitialTemperature
+import src.entity.SA
+import src.entity.NetworkSolution
+
+# hace algo main (imprimir función de costo)
+>>>>>>> 0c4d8046695c5dfceb1d4f32e17124f070a43b47
