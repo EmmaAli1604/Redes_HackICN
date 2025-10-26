@@ -227,9 +227,24 @@ class AdjacencyMatrix:
             DataFrame with branches connecting the specified buses
         """
         mask = ((self.df['from_bus'] == bus_from) & (self.df['to_bus'] == bus_to)) | \
-               ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
+            ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
         return self.df[mask]
     
+    def set_branch(self, bus_from: int, bus_to: int, status: float):
+        """Set the susceptance value between two buses."""
+        self.matrix[bus_from, bus_to] = status
+        self.matrix[bus_to, bus_from] = status
+
+    def get_neighbors_by_node(self, bus: int):
+        """Get neighboring buses for a given bus index."""
+        row = self.matrix.getrow(bus)
+        neighbors = row.nonzero()[1].tolist()
+        return neighbors
+
+    def get_grade_by_node(self, bus: int):
+        """Get the degree (number of connections) for a given bus index."""
+        return len(self.get_neighbors_by_node(bus))
+
     def summary(self):
         """Print a network summary."""
         print(f"=== Network Summary ===")
