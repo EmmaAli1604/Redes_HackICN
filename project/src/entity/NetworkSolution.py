@@ -173,7 +173,7 @@ class NetworkSolution:
         if self.cost == -1.0:
             self.calculate_cost()
 
-        return self.cost + (self.size/self.size_original) 
+        return self.cost 
 
     def calculate_cost(self) -> np.float64:
         """
