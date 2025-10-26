@@ -42,7 +42,7 @@ class SA:
                 if self.current_solution.get_cost() < self.best_solution.get_cost():
                     # Guardar una copia profunda de la nueva mejor solución
                     self.best_solution = copy.deepcopy(self.current_solution)
-                    # print(f"Nuevo mejor costo encontrado: {self.best_solution.get_cost()}")
+                    print(f"Nuevo mejor costo encontrado: {self.best_solution.get_cost()}")
             i+=1
         
         # Evitar división por cero si 'c' (conteo de aceptados) es 0
