@@ -25,23 +25,27 @@ class NetworkSolution:
         self.load = load
         self.size_original = graph.get_n_buses()
         self.size = self.size_original
+        
+        # --- CORRECCIÓN: Lista de nodos disponibles para 'get_random_node' ---
+        self.available_nodes = self.graph.buses.copy()
+        
+        self.normalize = np.float64(self.size * self.size * 10)
 
-        # Usamos -1.0 como bandera para indicar que el costo no ha sido calculado
+        # Usamos -1.0 como bandera. self.cost SIEMPRE almacenará el costo RAW (sin normalizar)
         self.cost = np.float64(-1.0) 
         
-        # Esto calculará el costo inicial la primera vez que se llame
-        self.get_cost() 
-        print(f"... [Solution] Costo inicial calculado: {self.cost}")
+        # Esto calculará el costo inicial (RAW) y lo guardará en self.cost
+        self.calculate_cost() 
+        print(f"... [Solution] Costo inicial calculado: {self.get_cost()}")
         
     def neighbour(self, rng: random.Random, ) -> List:
         """
         Genera una solución vecina (remove_node, new_cost, neighborA_index, neighborB_index, suspect_A_B)
         calculando el costo de forma incremental (O(1)).
         """
-        # --- CAMBIO: Usar np.float64 para los valores por defecto ---
         neighbour = [-1, np.float64(-1.0), -1, -1, (np.float64(-1.0), np.float64(-1.0))]
         
-        # Nodo a eliminar
+        # Nodo a eliminar (ahora usa la lista de nodos disponibles)
         C = self.get_random_node(rng)
 
         if self.graph.is_decisive_branch(self.generator, self.load, C) or \
@@ -54,30 +58,26 @@ class NetworkSolution:
         A = neighbour_c[0]
         B = neighbour_c[1]
 
-        # --- Lectura de valores actuales (ya son np.float64 de la matriz) ---
+        # --- Lectura de valores actuales ---
         characterized_A_C = [self.get_b(A,C), self.get_b_prime(A,C)]
         characterized_B_C = [self.get_b(B,C), self.get_b_prime(B,C)]
         characterized_A_B = [self.get_b(A,B), self.get_b_prime(A,B)]
 
-        # --- CAMBIO: Usar np.inf y np.float64 ---
+        # --- Cálculo de reactancias ---
         reactancia_A_C = 1 / characterized_A_C[0] if characterized_A_C[0] != 0 else np.inf
         reactancia_B_C = 1 / characterized_B_C[0] if characterized_B_C[0] != 0 else np.inf
         reactancia_A_B = 1 / characterized_A_B[0] if characterized_A_B[0] != 0 else np.float64(0.0)
 
         sum_reactancias = reactancia_A_C + reactancia_B_C + reactancia_A_B
         
-        # --- CAMBIO: Usar np.isinf para la comprobación ---
         if np.isinf(sum_reactancias):
             new_b_AB = np.float64(0.0) 
         else:
             new_b_AB = 1 / sum_reactancias
         
-        # --- CAMBIO: Usar np.float64 ---
         suspect_A_B = [new_b_AB + characterized_A_B[1], np.float64(0.0)]
         suspect_A_B[1] = -suspect_A_B[0]
 
-        # --- CÁLCULO DE COSTO INCREMENTAL (O(1)) ---
-        
         # --- CÁLCULO DE COSTO INCREMENTAL (O(1)) ---
         
         b_orig_AC = self.get_b_original(A,C)
@@ -92,18 +92,24 @@ class NetworkSolution:
                             abs(np.float64(0.0) - b_orig_BC) + \
                             abs(suspect_A_B[0] - b_orig_AB)
             
-        # --- CÁLCULO ---
+        # --- CÁLCULO CORREGIDO (SIN DOBLE NORMALIZACIÓN) ---
         
+        # 1. Delta del costo de diferencia (valores RAW)
         delta_cost_difference = (cost_after_change - cost_before_change)
         
+        # 2. Nuevo costo de diferencia (RAW)
+        #    self.cost almacena el costo de diferencia RAW
         new_difference_cost = self.cost + delta_cost_difference
 
+        # 3. Nueva penalización por tamaño
         new_size = self.size - 1
         new_size_penalty = new_size / self.size_original
         
-        new_cost = new_difference_cost + new_size_penalty
+        # 4. Nuevo costo TOTAL (normalizado)
+        new_cost_total = (new_difference_cost / self.normalize) + new_size_penalty
         
-        neighbour = [C, new_cost, A, B, suspect_A_B]
+        # Pasamos el costo TOTAL a la heurística
+        neighbour = [C, new_cost_total, A, B, suspect_A_B]
 
         return neighbour
 
@@ -119,16 +125,18 @@ class NetworkSolution:
     
     def get_random_node(self, rng : random.Random) -> int:
         """
-        Obtiene un ID de bus aleatorio de la red.
+        Obtiene un ID de bus aleatorio de la lista de nodos *disponibles*.
         """
-        random_index = rng.randint(0, self.size_original - 1)
-        return self.graph.buses[random_index]
+        # --- CORRECCIÓN: Elige de los nodos disponibles usando el tamaño actual ---
+        random_index = rng.randint(0, self.size - 1)
+        return self.available_nodes[random_index]
     
     def set_branch(self, nodeA :int, nodeB : int, branch: Tuple[float,float]):
         self.graph.set_branch(nodeA,nodeB,branch[0])
         self.graph.set_branch_prime(nodeA,nodeB,branch[1])
 
     def is_node_nin_graph(self,node : int) -> bool:
+        # Si el grado es 0, el nodo ya no está en el grafo (o fue eliminado)
         return self.graph.get_grade_by_node(node) == 0
 
     
@@ -153,43 +161,53 @@ class NetworkSolution:
         
         # 1. Actualiza el tamaño
         self.size -= 1
+        
+        # 2. Quita el nodo de la lista de disponibles
+        self.available_nodes.remove(C)
 
-        # 3. "Descontamina" el costo
+        # 3. "Descontamina" el costo para guardar solo el costo de diferencia (RAW)
         new_total_cost = neighbour[1]
         new_size_penalty = self.size / self.size_original
         
-        # Almacena SOLO el costo de diferencia
-        self.cost = new_total_cost - new_size_penalty
+        # Obtenemos la parte del costo que es solo la diferencia normalizada
+        cost_difference_normalized = new_total_cost - new_size_penalty
+        
+        # Almacenamos el costo de diferencia RAW (des-normalizado)
+        self.cost = cost_difference_normalized * self.normalize
 
 
     def get_cost(self) -> np.float64:
         """
-        Devuelve el costo actual.
+        Devuelve el costo TOTAL (Diferencia Normalizada + Penalización de Tamaño).
         Calcula el costo desde cero si es la primera vez que se llama.
         """
-        # --- ¡¡¡BUG CRÍTICO CORREGIDO!!! ---
-        # La lógica estaba invertida. 
-        # Debe calcular si el costo es igual a la bandera (-1.0).
         if self.cost == -1.0:
+            # self.calculate_cost() setea self.cost (RAW)
             self.calculate_cost()
 
-        return self.cost 
+        # --- CORRECCIÓN: Lógica de costo centralizada ---
+        cost_difference_normalized = self.cost / self.normalize
+        size_penalty = self.size / self.size_original
+        return cost_difference_normalized + size_penalty
 
     def calculate_cost(self) -> np.float64:
         """
-        Calcula el costo total desde cero O(m) usando matrices dispersas.
+        Calcula el costo de diferencia (RAW) desde cero O(m).
+        Este método solo setea self.cost, no devuelve el costo total.
         """
         try:
-            matrix_current = self.graph.get_matrix_csr()
-            matrix_original = self.graph_original.get_matrix_csr()
+            # [cite_start]get_matrix_csr() no existe en AdjacencyMatrix[cite: 1], usamos .matrix.tocsr()
+            matrix_current = self.graph.matrix.tocsr()
+            matrix_original = self.graph_original.matrix.tocsr()
         except AttributeError:
+             # Fallback por si acaso
             matrix_current = self.graph.matrix.tocsr()
             matrix_original = self.graph_original.matrix.tocsr()
 
         diff_matrix = matrix_current - matrix_original
         
-        # .data ya es un array de numpy, .sum() y np.abs() son eficientes
         difference = np.sum(np.abs(diff_matrix.data))
     
+        # --- CORRECCIÓN: Almacena el costo RAW (sin normalizar) ---
         self.cost = difference
         return self.cost
