@@ -20,6 +20,38 @@ class AdjacencyMatrix:
         # Convert to LIL format for efficient element assignment/modification
         self.matrix = matrix_csr.tolil()
         self.matrix_b_prime = matrix_b_prime_csr.tolil()
+        
+        # self.has_unavailable_branches = self._check_availability() # Cambiamos el nombre del atributo si se quiere.
+        self.unavailable_branches_flag = self.has_unavailable() # Usamos un nombre claro
+        # print(self.unavailable_branches)
+        
+    def has_unavailable(self):
+        """
+        Verifica si hay alguna rama "no disponible" en el sistema.
+        
+        Una rama se considera 'no disponible' si el valor en la columna "available" 
+        es distinto de cero (asumiendo 0 = disponible, distinto de 0 = no disponible).
+
+        Returns:
+            bool: True si hay al menos un valor distinto de cero en la columna "available", 
+                  False en caso contrario (o si la columna no existe).
+        """
+        if "available" not in self.df.columns:
+            # Si la columna 'available' no existe, asumimos que todas las ramas están disponibles por defecto.
+            return False 
+        
+        # Comprueba si el valor absoluto máximo de la columna 'available' es mayor que un umbral.
+        # Si hay CUALQUIER valor distinto de cero, el máximo de los valores absolutos será > 0.
+        # Se usa .any() para una verificación booleana directa de si algún elemento es distinto de cero.
+        # También se puede usar (self.df["available"] != 0).any()
+        return (self.df["available"] != 0).any()
+    
+    def unavailable_branches(self):
+        # ... implementación correcta ...
+        return (self.df["available"] != 0).any()
+    
+    def get_unavailable_branches_flag(self):
+        return self.unavailable_branches_flag # Retorna el booleano almacenado
 
     def _build_matrix_b_prime(self, matrix_csr):
         """

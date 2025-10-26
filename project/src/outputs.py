@@ -33,6 +33,10 @@ def csv_branch_output(graph: AdjacencyMatrix, output_file: str = 'outputs/branch
     rows_data: List[Dict[str, Any]] = []
     current_id = 1
     
+    # has_unavailable = matrix.has_unavailable()
+    # if not has_unavailable:
+    #     available : 1
+    
     for from_idx, to_idx, susceptance_value in zip(matrix_coo.row, matrix_coo.col, matrix_coo.data):
         from_bus = graph.index_to_bus(from_idx)
         to_bus = graph.index_to_bus(to_idx)
@@ -44,10 +48,14 @@ def csv_branch_output(graph: AdjacencyMatrix, output_file: str = 'outputs/branch
                 'from_bus': from_bus,
                 'to_bus': to_bus,
                 'susceptance': susceptance_value
+                # 'available': available
             })
             current_id += 1
     
     df_output = pd.DataFrame(rows_data)
+    
+    df_output['available'] = 1
+        
     df_output.to_csv(output_file, index=False)
     
     print(f"CSV generated: {output_file}")
@@ -66,3 +74,5 @@ matrix = AdjacencyMatrix(df_branch)
 generator = Generator(df_generator)
 
 csv_branch_output(matrix, output_file='outputs/branches_output.csv')
+
+
