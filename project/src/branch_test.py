@@ -1,12 +1,17 @@
 from utils.reading import *
 from branch import Branch
+import numpy as np
+
 
 branch, generator, load = get_day_20240521()
 
 # print(branch.head())
 
 branch_ = Branch(branch)
-Branch.summary(branch_)
+matrix = Branch.get_matrix_dataframe(branch_)
+buses = Branch.get_buses(branch_)
+
+print(matrix)
 
 # print(branch_.head())
 # Mostrar resumen

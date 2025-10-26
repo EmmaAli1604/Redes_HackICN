@@ -26,10 +26,52 @@ class Branch:
         """
         self.df = df.copy()
         self.susceptance_collapsed = collapsing_multiedges(df)
+        # self.susceptance_collapsed.to_csv('susceptance_collapsed.csv')
         self.buses = self._get_unique_buses()
         self.n_buses = len(self.buses)
         self.bus_to_idx = self._create_bus_to_idx()  # Create mapping
+
         self.susceptance_matrix = self._build_susceptance_matrix()
+
+    def _build_susceptance_matrix(self):
+        # Inicializar matriz de ceros
+        n = self.n_buses
+        raiz = int(np.sqrt(n))
+
+        # Verificar si es un cuadrado perfecto
+        if raiz * raiz == n:
+            matrix = np.array(self.buses).reshape(raiz, raiz)
+        else:
+            # Si no es cuadrado perfecto, ajustar
+            print(f"Advertencia: {n} elementos no forman un cuadrado perfecto")
+            # Opción: tomar solo los primeros raiz² elementos
+            matrix = np.array(self.buses[:raiz*raiz]).reshape(raiz, raiz)
+
+        print(matrix)
+        
+        # Llenar matriz iterando sobre las ramas colapsadas
+        # for _, row in self.susceptance_collapsed.iterrows():
+        #     i = row['from_bus']
+        #     j = row['to_bus']
+        #     suscept = row['suscept']
+            
+        #     print("i", i)
+        #     print("j", j)
+
+        #     print("suscept", suscept, "\n")
+
+        #     # Simetría
+        #     matrix[i, j] = suscept
+        #     matrix[j, i] = suscept
+
+        # for idx, row in self.susceptance_collapsed.iterrows():
+        #     from_bus = int(row['from_bus'])
+        #     to_bus = int(row['to_bus'])
+        #     suscept = row['suscept']
+            
+        #     matrix[from_bus, to_bus] = suscept
+
+        return matrix  # ← ¡Faltaba esto!
 
     def _get_unique_buses(self):
         """
@@ -51,40 +93,13 @@ class Branch:
         dict
             Dictionary {bus_id: matrix_index}
         """
-        return {bus: idx for idx, bus in enumerate(self.buses)}
+        # print(idx for idx, bus in enumerate(self.buses))
 
-    def _build_susceptance_matrix(self):
-        # Build the bus x bus susceptance matrix using collapsed branches.
-        
-        # Returns:
-        # --------
-        # np.ndarray
-        #     Susceptance matrix of dimension (n_buses, n_buses)
-        
-        # Filter available branches from collapsed dataframe
-        available = self.susceptance_collapsed[self.susceptance_collapsed['available'] == 1]
-        
-        # Map buses to indices and extract susceptances
-        from_idx = available['from_bus'].map(self.bus_to_idx).values
-        to_idx = available['to_bus'].map(self.bus_to_idx).values
-        b = available['suscept'].values
-        
-        # Initialize matrix
-        matrix = np.zeros((self.n_buses, self.n_buses))
-        
-        # Off-diagonal elements (symmetric)
-        np.add.at(matrix, (from_idx, to_idx), b)
-        np.add.at(matrix, (to_idx, from_idx), b)
-        
-        # Diagonal elements (negative sum of connected susceptances)
-        np.add.at(matrix, (from_idx, from_idx), -b)
-        np.add.at(matrix, (to_idx, to_idx), -b)
-        
-        return matrix
+        return {bus: idx for idx, bus in enumerate(self.buses)}
     
     def get_matrix(self):
         """Return the susceptance matrix."""
-        return self.susceptance_matrix
+        return self.susceptance_collapsed
     
     def get_matrix_dataframe(self):
         """
@@ -92,13 +107,13 @@ class Branch:
         """
         return pd.DataFrame(
             self.susceptance_matrix,
-            index=self.buses,
-            columns=self.buses
+            # index=self.buses,
+            # columns=self.buses
         )
     
     def get_buses(self):
         """Return the list of buses."""
-        return self.buses
+        return [int(bus) for bus in self.buses]
     
     def get_bus_index(self, bus_id):
         """
