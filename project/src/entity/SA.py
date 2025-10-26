@@ -38,7 +38,7 @@ class SA:
                 i += 1 # Contar la iteración aunque el vecino sea inválido
                 continue
             
-            print(vecino[1],self.current_solution.get_cost() + self.initial_temperature)
+            #print(vecino[1],self.current_solution.get_cost() + self.initial_temperature)
             if vecino[1] <= self.current_solution.get_cost() + self.initial_temperature:
                 self.current_solution.update(vecino)
                 c += 1
@@ -48,7 +48,7 @@ class SA:
                     # --- CORRECCIÓN DE BUG CRÍTICO (COPIA DE REFERENCIA) ---
                     # Guardar una copia profunda de la nueva mejor solución
                     self.best_solution = copy.deepcopy(self.current_solution)
-                    print(f"Nuevo mejor costo encontrado: {self.best_solution.get_cost()}")
+                    # print(f"Nuevo mejor costo encontrado: {self.best_solution.get_cost()}")
             i+=1
         
         # Evitar división por cero si 'c' (conteo de aceptados) es 0

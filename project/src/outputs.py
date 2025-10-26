@@ -1,7 +1,7 @@
 import pandas as pd
-from adjacency_matrix import AdjacencyMatrix
-from utils.reading import get_day_20240521
-from generator import Generator
+from src.adjacency_matrix import AdjacencyMatrix
+from src.utils.reading import get_day_20240521
+from src.generator import Generator
 from scipy import sparse as sp
 
 def csv_branch_output(graph, output_file='outputs/branches_reduced_output.csv'):

@@ -7,7 +7,8 @@ from src.entity.InitialTemperature import InitialTemperature
 from src.entity.NetworkSolution import NetworkSolution
 from src.entity.SA import SA
 import random as rnd
-
+import copy
+from src.outputs import csv_branch_output    
 # basic dayli-data read
 df_branch, df_generator, df_load = get_day_20240521()
 
@@ -25,7 +26,9 @@ def get_decisive_branch(matrix):
     return (nodes_load + nodes_gen + monitores_bus)
 
 decisive_nodes = get_decisive_branch(matrix)
-
+best_cost = 0.7636289491700504
+best_seed = 0
+    
 config = Config()
 network = NetworkSolution(matrix, nodes_gen, nodes_load)
 network_temperature = network
@@ -33,23 +36,27 @@ init_temperature = InitialTemperature(
     config.initial_temperature, 
     config.percentage, 
     config.e_p, 
-    network_temperature, 
+    copy.deepcopy(network_temperature), 
     config.n, 
     config.seed
 )
 temperature = init_temperature.get_initial_t(config.limit)
 print("--- [temp] Temperatura inicial ")
 print(temperature)
-random = rnd.Random(config.seed)
+random = rnd.Random(0)
 sa = SA(
     temperature, 
     config.cooling_rate, 
-    network, 
+    copy.deepcopy(network), 
     config.size_lote, 
     random, 
     config.e_s, 
     config.limit
 )
 sa.accept_threshold()
-print(sa.get_best_solution())
-# print(decisive_nodes)
+if sa.get_best_solution() < best_cost:
+    best_cost = sa.get_best_solution()
+    print("----- NEW BEST COST -----")
+    print(sa.get_best_solution())
+    Outputs.osv_branch_output(sa.get_best_solution.get_graph()) 
+    # print(decisive_nodes)
