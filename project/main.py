@@ -45,6 +45,7 @@ init_temperature = InitialTemperature(
     config.n, 
     config.seed
 )
+
 temperature = init_temperature.get_initial_t(config.limit)
 print("--- [temp] Temperatura inicial ")
 print(temperature)
