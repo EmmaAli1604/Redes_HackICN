@@ -27,5 +27,12 @@ load = Loads(df_load)
 nodes_load = load.get_nodes() 
 # print(nodes_load)
 
+def get_decisive_branch(matrix):
+    monitores_bus = matrix.getMonitoredBranch()
+    return (nodes_load + nodes_gen)
+
+decisive_nodes = get_decisive_branch(matrix)
+print(decisive_nodes)
+
 # print("branchx:", branchx)
 # print("branchy:", branchy)

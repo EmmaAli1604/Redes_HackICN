@@ -132,6 +132,19 @@ class AdjacencyMatrix:
             # index=self.buses,
             # columns=self.buses
         )
+    
+    def getMonitoredBranch(self):
+        """
+        Returns a list of unique buses from monitored branches.
+        
+        Returns:
+            list: Unique buses (from_bus and to_bus) where monitored is True
+        """
+        # Filter rows where monitored is True
+        monitored = self.df[self.df['monitored'] == True]
+        
+        # Extract unique values from both from_bus and to_bus columns
+        return pd.unique(monitored[['from_bus', 'to_bus']].values.ravel()).tolist()
 
     def is_decisive_branch(self, gen_node, load_node, from_bus, to_bus):
         """
