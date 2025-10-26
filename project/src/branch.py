@@ -26,11 +26,10 @@ class Branch:
         """
         self.df = df.copy()
         self.susceptance_collapsed = collapsing_multiedges(df)
-        # self.susceptance_collapsed.to_csv('susceptance_collapsed.csv')
         self.buses = self._get_unique_buses()
         self.n_buses = len(self.buses)
-        self.bus_to_idx = self._create_bus_to_idx()  # Create mapping
 
+        self.bus_to_idx = self._create_bus_to_idx()  # Create mapping
         # self.susceptance_matrix = self._build_susceptance_matrix()
         # Asignar directamente
         self.matrix, self.bus_to_index, self.index_to_bus = self.create_empty_matrix()
@@ -43,8 +42,8 @@ class Branch:
         matrix = np.zeros((n, n))
         
         # print(matrix)
-        print(bus_to_index)
-        print(index_to_bus)
+        # print(bus_to_index)
+        # print(index_to_bus)
         return matrix, bus_to_index, index_to_bus
     
     def fill_matrix(self):
@@ -63,6 +62,8 @@ class Branch:
             # Si la matrix es simétrica, también puedes hacer:
             self.matrix[j, i] = suscept
 
+    def get_buses(self):
+        return self.n_buses
 
     def _get_unique_buses(self):
         """
