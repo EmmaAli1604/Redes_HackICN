@@ -181,8 +181,18 @@ class AdjacencyMatrix:
             DataFrame with branches connecting the specified buses
         """
         mask = ((self.df['from_bus'] == bus_from) & (self.df['to_bus'] == bus_to)) | \
-               ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
+            ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
         return self.df[mask]
+    
+    def set_branch_status(self, bus_from: int, bus_to: int, status: float):
+        self.matrix[self.bus_to_index[bus_from], self.bus_to_index[bus_to]] = status
+    
+    def get_vecino_by_node(self, index: int):
+        """Get neighboring buses for a given bus index."""
+        row = self.matrix.getrow(index)
+        neighbor_indices = row.nonzero()[1]
+        neighbors = [self.buses[i] for i in neighbor_indices]
+        return neighbors
     
     def summary(self):
         """Print a network summary."""
