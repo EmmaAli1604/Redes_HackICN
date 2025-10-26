@@ -31,47 +31,38 @@ class Branch:
         self.n_buses = len(self.buses)
         self.bus_to_idx = self._create_bus_to_idx()  # Create mapping
 
-        self.susceptance_matrix = self._build_susceptance_matrix()
-
-    def _build_susceptance_matrix(self):
-        # Inicializar matriz de ceros
-        n = self.n_buses
-        raiz = int(np.sqrt(n))
-
-        # Verificar si es un cuadrado perfecto
-        if raiz * raiz == n:
-            matrix = np.array(self.buses).reshape(raiz, raiz)
-        else:
-            # Si no es cuadrado perfecto, ajustar
-            print(f"Advertencia: {n} elementos no forman un cuadrado perfecto")
-            # Opción: tomar solo los primeros raiz² elementos
-            matrix = np.array(self.buses[:raiz*raiz]).reshape(raiz, raiz)
-
-        print(matrix)
+        # self.susceptance_matrix = self._build_susceptance_matrix()
+        # Asignar directamente
+        self.matrix, self.bus_to_index, self.index_to_bus = self.create_empty_matrix()
+        self.fill_matrix()
         
-        # Llenar matriz iterando sobre las ramas colapsadas
-        # for _, row in self.susceptance_collapsed.iterrows():
-        #     i = row['from_bus']
-        #     j = row['to_bus']
-        #     suscept = row['suscept']
+    def create_empty_matrix(self):
+        bus_to_index = {bus: idx for idx, bus in enumerate(self.buses)}
+        index_to_bus = {idx: bus for idx, bus in enumerate(self.buses)}
+        n = len(self.buses)
+        matrix = np.zeros((n, n))
+        
+        # print(matrix)
+        print(bus_to_index)
+        print(index_to_bus)
+        return matrix, bus_to_index, index_to_bus
+    
+    def fill_matrix(self):
+        for _, row in self.susceptance_collapsed.iterrows():
+            from_bus = row['from_bus']
+            to_bus = row['to_bus']
+            suscept = row['suscept']
             
-        #     print("i", i)
-        #     print("j", j)
-
-        #     print("suscept", suscept, "\n")
-
-        #     # Simetría
-        #     matrix[i, j] = suscept
-        #     matrix[j, i] = suscept
-
-        # for idx, row in self.susceptance_collapsed.iterrows():
-        #     from_bus = int(row['from_bus'])
-        #     to_bus = int(row['to_bus'])
-        #     suscept = row['suscept']
+            # Convertir números de bus a índices usando el mapeo
+            i = self.bus_to_index[from_bus]
+            j = self.bus_to_index[to_bus]
             
-        #     matrix[from_bus, to_bus] = suscept
+            # Asignar el valor de susceptancia
+            self.matrix[i, j] = suscept
+            
+            # Si la matrix es simétrica, también puedes hacer:
+            self.matrix[j, i] = suscept
 
-        return matrix  # ← ¡Faltaba esto!
 
     def _get_unique_buses(self):
         """
@@ -106,7 +97,7 @@ class Branch:
         Return the susceptance matrix as a DataFrame with bus indices.
         """
         return pd.DataFrame(
-            self.susceptance_matrix,
+            self.matrix
             # index=self.buses,
             # columns=self.buses
         )
