@@ -11,6 +11,15 @@ class AdjacencyMatrix:
         self.n_buses = len(self.buses)
         self.bus_to_index = {bus: idx for idx, bus in enumerate(self.buses)}
         self.matrix = self._build_sparse_matrix()
+        self.matrix_b_prime = self._build_matrix_b_prime()
+
+    def _build_matrix_b_prime(self):
+        row_sums = self.matrix.sum(axis=1)
+        diag_values = np.asarray(row_sums).flatten()
+        D = sparse.diags(diag_values, format='csr')
+        A = -self.matrix + D
+
+        return A
     
     def _collapsing_multiedges(self, df):
         df_collapsed = df.copy()
@@ -173,10 +182,21 @@ class AdjacencyMatrix:
             ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
         return self.df[mask]
     
+    def get_branch(self, bus_from, bus_to) -> float:
+        return self.matrix[bus_from,bus_to]
+    
+    def get_branch_prime(self,bus_from,bus_to) -> float:
+        return self.matrix_b_prime[bus_from,bus_to]
+
+    
     def set_branch(self, bus_from: int, bus_to: int, status: float):
         """Set the susceptance value between two buses."""
         self.matrix[bus_from, bus_to] = status
         self.matrix[bus_to, bus_from] = status
+    
+    def set_branch_prime(self, bus_from: int, bus_to: int, status : float):
+        self.matrix_b_prime[bus_from,bus_to] = status
+        self.matrix_b_prime[bus_from,bus_to] = status 
 
     def get_neighbors_by_node(self, bus: int):
         """Get neighboring buses for a given bus index."""
