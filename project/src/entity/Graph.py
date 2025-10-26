@@ -23,7 +23,7 @@ class Graph:
     def get_cost(self):
         pass
 
-    def get_cost(self):
+    def get_network_solution():
         pass
 
     def get_reactancia (self, i: int ,j : int):
