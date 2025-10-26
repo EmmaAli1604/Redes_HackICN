@@ -26,12 +26,12 @@ class NetworkSolution:
         self.size_original = graph.get_n_buses()
         self.size = self.size_original
         
-        # --- CORRECCIÓN: Lista de nodos disponibles para 'get_random_node' ---
+        # Lista de nodos disponibles para 'get_random_node'
         self.available_nodes = self.graph.buses.copy()
         
         self.normalize = np.float64(self.size * self.size * 10)
 
-        # Usamos -1.0 como bandera. self.cost SIEMPRE almacenará el costo RAW (sin normalizar)
+        # Usamos -1.0 como bandera. self.cost SIEMPRE almacena el costo RAW (sin normalizar)
         self.cost = np.float64(-1.0) 
         
         # Esto calculará el costo inicial (RAW) y lo guardará en self.cost
@@ -45,7 +45,7 @@ class NetworkSolution:
         """
         neighbour = [-1, np.float64(-1.0), -1, -1, (np.float64(-1.0), np.float64(-1.0))]
         
-        # Nodo a eliminar (ahora usa la lista de nodos disponibles)
+        # Nodo a eliminar
         C = self.get_random_node(rng)
 
         if self.graph.is_decisive_branch(self.generator, self.load, C) or \
@@ -58,12 +58,12 @@ class NetworkSolution:
         A = neighbour_c[0]
         B = neighbour_c[1]
 
-        # --- Lectura de valores actuales ---
+        # Lectura de valores actuales
         characterized_A_C = [self.get_b(A,C), self.get_b_prime(A,C)]
         characterized_B_C = [self.get_b(B,C), self.get_b_prime(B,C)]
         characterized_A_B = [self.get_b(A,B), self.get_b_prime(A,B)]
 
-        # --- Cálculo de reactancias ---
+        # Cálculo de reactancias
         reactancia_A_C = 1 / characterized_A_C[0] if characterized_A_C[0] != 0 else np.inf
         reactancia_B_C = 1 / characterized_B_C[0] if characterized_B_C[0] != 0 else np.inf
         reactancia_A_B = 1 / characterized_A_B[0] if characterized_A_B[0] != 0 else np.float64(0.0)
@@ -78,7 +78,7 @@ class NetworkSolution:
         suspect_A_B = [new_b_AB + characterized_A_B[1], np.float64(0.0)]
         suspect_A_B[1] = -suspect_A_B[0]
 
-        # --- CÁLCULO DE COSTO INCREMENTAL (O(1)) ---
+        # CÁLCULO DE COSTO INCREMENTAL (O(1))
         
         b_orig_AC = self.get_b_original(A,C)
         b_orig_BC = self.get_b_original(B,C)
@@ -92,7 +92,7 @@ class NetworkSolution:
                             abs(np.float64(0.0) - b_orig_BC) + \
                             abs(suspect_A_B[0] - b_orig_AB)
             
-        # --- CÁLCULO CORREGIDO (SIN DOBLE NORMALIZACIÓN) ---
+        # CÁLCULO CORREGIDO (SIN DOBLE NORMALIZACIÓN)
         
         # 1. Delta del costo de diferencia (valores RAW)
         delta_cost_difference = (cost_after_change - cost_before_change)
@@ -127,7 +127,7 @@ class NetworkSolution:
         """
         Obtiene un ID de bus aleatorio de la lista de nodos *disponibles*.
         """
-        # --- CORRECCIÓN: Elige de los nodos disponibles usando el tamaño actual ---
+        # Elige de los nodos disponibles usando el tamaño actual
         random_index = rng.randint(0, self.size - 1)
         return self.available_nodes[random_index]
     
@@ -157,7 +157,7 @@ class NetworkSolution:
         
         self.set_branch(A,B,suspect_A_B)
         
-        # --- ACTUALIZACIÓN DE ESTADO CORREGIDA ---
+        # ACTUALIZACIÓN DE ESTADO CORREGIDA
         
         # 1. Actualiza el tamaño
         self.size -= 1
@@ -185,7 +185,7 @@ class NetworkSolution:
             # self.calculate_cost() setea self.cost (RAW)
             self.calculate_cost()
 
-        # --- CORRECCIÓN: Lógica de costo centralizada ---
+        # Lógica de costo centralizada
         cost_difference_normalized = self.cost / self.normalize
         size_penalty = self.size / self.size_original
         return cost_difference_normalized + size_penalty
@@ -196,7 +196,7 @@ class NetworkSolution:
         Este método solo setea self.cost, no devuelve el costo total.
         """
         try:
-            # [cite_start]get_matrix_csr() no existe en AdjacencyMatrix[cite: 1], usamos .matrix.tocsr()
+            # Usamos .matrix.tocsr() para obtener la matriz sparse
             matrix_current = self.graph.matrix.tocsr()
             matrix_original = self.graph_original.matrix.tocsr()
         except AttributeError:
@@ -208,6 +208,6 @@ class NetworkSolution:
         
         difference = np.sum(np.abs(diff_matrix.data))
     
-        # --- CORRECCIÓN: Almacena el costo RAW (sin normalizar) ---
+        # Almacena el costo RAW (sin normalizar)
         self.cost = difference
         return self.cost
