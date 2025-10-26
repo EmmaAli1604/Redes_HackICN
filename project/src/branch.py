@@ -30,7 +30,7 @@ class Branch:
         self.n_buses = len(self.buses)
 
         self.bus_to_idx = self._create_bus_to_idx()  # Create mapping
-        # self.susceptance_matrix = self._build_susceptance_matrix()
+        #self.susceptance_matrix = self._build_susceptance_matrix()
         # Asignar directamente
         self.matrix, self.bus_to_index, self.index_to_bus = self.create_empty_matrix()
         self.fill_matrix()
@@ -140,7 +140,7 @@ class Branch:
             DataFrame with branches connecting the specified buses
         """
         mask = ((self.df['from_bus'] == bus_from) & (self.df['to_bus'] == bus_to)) | \
-               ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
+            ((self.df['from_bus'] == bus_to) & (self.df['to_bus'] == bus_from))
         return self.df[mask]
     
     def summary(self):

@@ -13,15 +13,15 @@ buses = Branch.get_buses(branch_)
 
 print(matrix)
 
-# print(branch_.head())
+#print(branch_.head())
 # Mostrar resumen
-# print(Branch.summary(branch_))
+print(Branch.summary(branch_))
 
 # Obtener matriz como DataFrame
-# print("\n=== Matriz de Susceptancias ===")
-# matrix_df = branch.get_matrix_dataframe()
-# print(matrix_df)
+print("\n=== Matriz de Susceptancias ===")
+matrix_df = branch.get_matrix_dataframe()
+print(matrix_df)
 
 # Consultar información de una rama específica
-# print("\n=== Información rama entre bus 5775 y 5873 ===")
-# print(branch.get_branch_info(5775, 5873))
+print("\n=== Información rama entre bus 5775 y 5873 ===")
+print(branch.get_branch_info(5775, 5873))
