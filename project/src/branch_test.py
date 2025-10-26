@@ -1,17 +1,21 @@
 from utils.reading import *
-from branch import Branch
+from adjacency_matrix import AdjacencyMatrix
 import numpy as np
 
 
-branch, generator, load = get_day_20240521()
+df_branch, generator, load = get_day_20240521()
 
 # print(branch.head())
 
-branch_ = Branch(branch)
-matrix = Branch.get_matrix_dataframe(branch_)
-buses = Branch.get_buses(branch_)
+matrix = AdjacencyMatrix(df_branch)
+AdjacencyMatrix.print_matrix_info(matrix)
+# matrix = Branch.get_matrix_dataframe(branch_)
+# buses = Branch.get_buses(branch_)
 
-print(matrix)
+# print(matrix)
+# Branch.print_matrix_info(branch_)
+# sus = Branch.get_value(branch_, 1,2)
+# print(sus)
 
 #print(branch_.head())
 # Mostrar resumen
