@@ -93,7 +93,7 @@ class AdjacencyMatrix:
     def get_bus_from_index(self, idx):
         return self.buses[idx]
 
-    def get_buses(self):
+    def get_n_buses(self):
         return self.n_buses
 
     def _get_unique_buses(self):
@@ -132,7 +132,51 @@ class AdjacencyMatrix:
             # index=self.buses,
             # columns=self.buses
         )
-    
+
+    def is_decisive_branch(self, gen_node, load_node, from_bus, to_bus):
+        """
+        Determines if a branch is decisive based on whether the buses are in generation nodes,
+        load nodes, or are being monitored.
+
+        Do not use index, it requires buses
+        
+        Parameters:
+        -----------
+        gen_node : list of int
+            List of generation nodes
+        load_node : list of int
+            List of load nodes
+        from_bus : int
+            Origin bus
+        to_bus : int
+            Destination bus
+            
+        Returns:
+        --------
+        bool
+            False if NONE of the buses are in the lists NOR monitored, True otherwise
+        """
+        # Convert lists to sets once for O(1) lookup (do this in __init__ if possible)
+        gen_set = set(gen_node)
+        load_set = set(load_node)
+        
+        # Quick check: if any bus is in gen or load nodes, return True immediately
+        if from_bus in gen_set or from_bus in load_set or to_bus in gen_set or to_bus in load_set:
+            return True
+        
+        # Check monitored status using vectorized operations
+        # Use bitwise OR for better performance
+        mask_buses = ((self.df['from_bus'] == from_bus) | (self.df['to_bus'] == from_bus) |
+                    (self.df['from_bus'] == to_bus) | (self.df['to_bus'] == to_bus))
+        
+        # If any matching row has monitored = True, return True
+        if mask_buses.any() and self.df.loc[mask_buses, 'monitored'].any():
+            return True
+        
+        # None of the conditions met, return False
+        return False
+
+
     def get_buses(self):
         """Return the list of buses."""
         return [int(bus) for bus in self.buses]
