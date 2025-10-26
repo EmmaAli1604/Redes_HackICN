@@ -5,68 +5,29 @@ from scipy import sparse
 class AdjacencyMatrix:
 
     def __init__(self, df):
-        print("--- [Matrix] Iniciando AdjacencyMatrix __init__ ---")
         self.df = df.copy()
         self.susceptance_collapsed = self._collapsing_multiedges(self.df)
         self.buses = self._get_unique_buses()
         self.n_buses = len(self.buses)
         self.bus_to_index = {bus: idx for idx, bus in enumerate(self.buses)}
-        #self.matrix = self._build_sparse_matrix()
-        #self.matrix_b_prime = self._build_matrix_b_prime()
-        matrix_csr = self._build_sparse_matrix()
-        matrix_b_prime_csr = self._build_matrix_b_prime(matrix_csr)
-        self.matrix = matrix_csr.tolil()
-        self.matrix_b_prime = matrix_b_prime_csr.tolil()
+        self.matrix = self._build_sparse_matrix()
+        self.matrix_b_prime = self._build_matrix_b_prime()
 
-    def _build_matrix_b_prime(self,matrix_csr):
-        row_sums = matrix_csr.sum(axis=1)
+    def _build_matrix_b_prime(self):
+        row_sums = self.matrix.sum(axis=1)
         diag_values = np.asarray(row_sums).flatten()
         D = sparse.diags(diag_values, format='csr')
-        A = -matrix_csr + D
+        A = -self.matrix + D
 
         return A
     
     def _collapsing_multiedges(self, df):
-        """
-        Suma ramas paralelas (multi-edges) usando groupby().agg().
-        Esto es mucho más rápido que transform() y crea un DataFrame más pequeño.
-        """
-        df_copy = df.copy()
-        
-        # 1. Normaliza las direcciones de bus para agrupar (ej. 101->102 y 102->101)
-        #    Usar np.min/max es más rápido que .min(axis=1) en pandas
-        buses_df = df_copy[['from_bus', 'to_bus']]
-        df_copy['bus_1'] = np.min(buses_df.values, axis=1)
-        df_copy['bus_2'] = np.max(buses_df.values, axis=1)
-        
-        # 2. Define cómo agregar las columnas.
-        #    Suma 'suscept', pero toma 'any' (True si CUALQUIERA es True)
-        #    para 'monitored' y 'available'.
-        
-        # ¡IMPORTANTE! Añade aquí cualquier otra columna que necesites conservar
-        aggregations = {
-            'suscept': 'sum',
-            'monitored': 'any',
-            'available': 'any'
-            # 'columna_X': 'first', # etc.
-        }
-
-        # 3. ¡LA OPERACIÓN CLAVE!
-        #    Usa agg() en lugar de transform().
-        df_collapsed = df_copy.groupby(['bus_1', 'bus_2']).agg(aggregations).reset_index()
-        
-        # 4. Renombra las columnas 'bus_1', 'bus_2' para que 
-        #    _build_sparse_matrix las pueda usar.
-        df_collapsed.rename(columns={'bus_1': 'from_bus', 'bus_2': 'to_bus'}, inplace=True)
-        
+        df_collapsed = df.copy()
+        df_collapsed['bus_min'] = df_collapsed[['from_bus', 'to_bus']].min(axis=1)
+        df_collapsed['bus_max'] = df_collapsed[['from_bus', 'to_bus']].max(axis=1)
+        df_collapsed['suscept'] = df_collapsed.groupby(['bus_min', 'bus_max'])['suscept'].transform('sum')
+        df_collapsed.drop(['bus_min', 'bus_max'], axis=1, inplace=True)
         return df_collapsed
-    
-    #    df_collapsed = df.copy()
-    #    df_collapsed['bus_min'] = df_collapsed[['from_bus', 'to_bus']].min(axis=1)
-    #    df_collapsed['bus_max'] = df_collapsed[['from_bus', 'to_bus']].max(axis=1)
-    #    df_collapsed['suscept'] = df_collapsed.groupby(['bus_min', 'bus_max'])['suscept'].transform('sum')
-    #    df_collapsed.drop(['bus_min', 'bus_max'], axis=1, inplace=True)
-    #    return df_collapsed
     
     def _build_sparse_matrix(self):
         df = self.susceptance_collapsed
@@ -282,75 +243,24 @@ class AdjacencyMatrix:
         return self.matrix_b_prime[bus_from,bus_to]
 
     
-    # En adjacency_matrix.py
-    def get_branch(self, bus_from: int, bus_to: int) -> float:
-        """Obtiene el valor de la rama usando IDs de bus."""
-        try:
-            idx_from = self.bus_to_index[bus_from]
-            idx_to = self.bus_to_index[bus_to]
-        except KeyError as e:
-            raise KeyError(f"Bus ID {e} no encontrado en bus_to_index")
-        return self.matrix[idx_from, idx_to]
-
-    def get_branch_prime(self, bus_from: int, bus_to: int) -> float:
-        """Obtiene el valor de la rama B' usando IDs de bus."""
-        try:
-            idx_from = self.bus_to_index[bus_from]
-            idx_to = self.bus_to_index[bus_to]
-        except KeyError as e:
-            raise KeyError(f"Bus ID {e} no encontrado en bus_to_index")
-        return self.matrix_b_prime[idx_from, idx_to]
-
     def set_branch(self, bus_from: int, bus_to: int, status: float):
-        """Establece el valor de la rama usando IDs de bus."""
-        try:
-            idx_from = self.bus_to_index[bus_from]
-            idx_to = self.bus_to_index[bus_to]
-        except KeyError as e:
-            raise KeyError(f"Bus ID {e} no encontrado en bus_to_index")
+        """Set the susceptance value between two buses."""
+        self.matrix[bus_from, bus_to] = status
+        self.matrix[bus_to, bus_from] = status
     
-        self.matrix[idx_from, idx_to] = status
-        self.matrix[idx_to, idx_from] = status
-
     def set_branch_prime(self, bus_from: int, bus_to: int, status : float):
-        """Establece el valor de la rama B' usando IDs de bus."""
-        try:
-            idx_from = self.bus_to_index[bus_from]
-            idx_to = self.bus_to_index[bus_to]
-        except KeyError as e:
-            raise KeyError(f"Bus ID {e} no encontrado en bus_to_index")
+        self.matrix_b_prime[bus_from,bus_to] = status
+        self.matrix_b_prime[bus_from,bus_to] = status 
 
-        self.matrix_b_prime[idx_from, idx_to] = status
-        self.matrix_b_prime[idx_to, idx_from] = status # <-- Bug de copia corregido
-
-        
     def get_neighbors_by_node(self, bus: int):
-        """Obtiene los IDs de bus vecinos para un ID de bus dado."""
-        try:
-        # 1. Convertir ID de bus a índice de matriz
-            idx = self.bus_to_index[bus]
-        except KeyError:
-            return [] # El bus no existe, no tiene vecinos
-    
-    # 2. Obtener la fila usando el ÍNDICE
-        row = self.matrix.getrow(idx)
-    
-    # 3. Obtener los ÍNDICES de los vecinos
-        neighbor_indices = row.nonzero()[1].tolist()
-    
-    # 4. Convertir los ÍNDICES de los vecinos de vuelta a IDs de BUS
-        return [self.buses[i] for i in neighbor_indices]
+        """Get neighboring buses for a given bus index."""
+        row = self.matrix.getrow(bus)
+        neighbors = row.nonzero()[1].tolist()
+        return neighbors
 
     def get_grade_by_node(self, bus: int):
-        """Obtiene el grado (número de conexiones) para un ID de bus dado."""
-        try:
-        # 1. Convertir ID de bus a índice de matriz
-            idx = self.bus_to_index[bus]
-        except KeyError:
-            return 0 # El bus no existe, grado 0
-    
-    # 2. .nnz (Number of Non-Zero) es la forma más rápida de get_grade
-        return self.matrix.getrow(idx).nnz
+        """Get the degree (number of connections) for a given bus index."""
+        return len(self.get_neighbors_by_node(bus))
 
     def summary(self):
         """Print a network summary."""

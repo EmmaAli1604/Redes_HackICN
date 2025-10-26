@@ -1,5 +1,6 @@
 import random
-import NetworkSolution
+import numpy as np  # <-- AÑADIDO
+from .NetworkSolution import NetworkSolution
 
 
 class InitialTemperature:
@@ -13,31 +14,39 @@ class InitialTemperature:
         temperature: float,
         percentage: float,
         e_p: float,
-        solution : NetworkSolution.NetworkSolution,
+        solution : NetworkSolution,
         n: int,
         seed: int
     ):
         """
         Constructor de la clase'.
         """
-        self.temperature = temperature
-        self.percentage = percentage
-        self.e_p = e_p 
+        # --- CAMBIO: Usar np.float64 ---
+        self.temperature = np.float64(temperature)
+        self.percentage = np.float64(percentage)
+        self.e_p = np.float64(e_p)
         self.solution = solution
         self.n = n  
         
         self.random = random.Random(seed)
 
-    def get_initial_t(self, limit: int) -> float:
+    def get_initial_t(self, limit: int) -> np.float64: # <-- CAMBIO
         """
         Calcula la temperatura inicial.
         """
+        print("--- [Temp] Iniciando cálculo de Temperatura Inicial...")
         p = self._accept_percentage()
+        print("------")
+        print(p)
+        print(self.percentage)
+        print(abs(self.percentage - p),self.e_p)
         if abs(self.percentage - p) <= self.e_p:
+            print(self.temperature)
             return self.temperature
 
-        t1: float
-        t2: float
+    
+        t1: np.float64 # <-- CAMBIO (opcional, pero bueno para claridad)
+        t2: np.float64 # <-- CAMBIO (opcional)
         
         i = 0 
         
@@ -64,29 +73,32 @@ class InitialTemperature:
 
         if i == limit:
             return self.temperature
+        print("--- [Temp] Iniciando búsqueda binaria de temperatura...")
 
         return self._binary_search(t1, t2)
 
-    def _accept_percentage(self) -> float:
+    def _accept_percentage(self) -> np.float64: # <-- CAMBIO
         """
         Método auxiliar "privado".
         """
-        c = 0.0
+        # --- CAMBIO: Usar np.float64 ---
+        c = np.float64(0.0)
         for _ in range(self.n):
-            vecino = self.solution.neighbour()
-            
-            if vecino[1] <= self.path.get_cost() + self.temperature:
+            vecino = self.solution.neighbour(self.random)
+            if vecino[0] == -1: # <-- Esto ya estaba correcto
+                continue
+            if vecino[1] <= self.solution.get_cost() + self.temperature:
                 self.solution.update(vecino)
                 c += 1.0
-        
+        print(c / self.n)
         return c / self.n
 
-    def _binary_search(self, t_1: float, t_2: float) -> float:
+    def _binary_search(self, t_1: np.float64, t_2: np.float64) -> np.float64: # <-- CAMBIO
         """
         Método auxiliar "privado".
-        Equivalente a 'binary_search'.
         """
-        t_m = (t_1 + t_2) / 2.0
+        # --- CAMBIO: Usar np.float64 ---
+        t_m = (t_1 + t_2) / np.float64(2.0)
         if (t_2 - t_1) < self.e_p:
             return t_m
 

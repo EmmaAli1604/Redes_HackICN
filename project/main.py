@@ -1,8 +1,12 @@
-<<<<<<< HEAD
 from src.utils.reading import *
 from src.adjacency_matrix import AdjacencyMatrix
 from src.generator import Generator
 from src.loads import Loads
+from src.utils.Config import Config
+from src.entity.InitialTemperature import InitialTemperature
+from src.entity.NetworkSolution import NetworkSolution
+from src.entity.SA import SA
+import random as rnd
 
 # basic dayli-data read
 df_branch, df_generator, df_load = get_day_20240521()
@@ -18,17 +22,35 @@ nodes_load = load.get_nodes()
 
 def get_decisive_branch(matrix):
     monitores_bus = matrix.getMonitoredBranch()
-    return (nodes_load + nodes_gen)
+    return (nodes_load + nodes_gen + monitores_bus)
 
 decisive_nodes = get_decisive_branch(matrix)
-# print(decisive_nodes)
-=======
-import src.utils.Config
-import src.utils.reading
-import src.entity.Graph
-import src.entity.InitialTemperature
-import src.entity.SA
-import src.entity.NetworkSolution
 
-# hace algo main (imprimir función de costo)
->>>>>>> 0c4d8046695c5dfceb1d4f32e17124f070a43b47
+config = Config()
+network = NetworkSolution(matrix, nodes_gen, nodes_load)
+network_temperature = network
+print(config.initial_temperature)
+init_temperature = InitialTemperature(
+    config.initial_temperature, 
+    config.percentage, 
+    config.e_p, 
+    network_temperature, 
+    config.n, 
+    config.seed
+)
+temperature = init_temperature.get_initial_t(config.limit)
+print("--- [temp] Temperatura inicial ")
+print(temperature)
+""" random = rnd.Random(config.seed)
+sa = SA(
+    temperature, 
+    config.cooling_rate, 
+    network, 
+    config.size_lote, 
+    random, 
+    config.e_s, 
+    config.limit
+)
+sa.accept_threshold()
+print(sa.get_best_solution()) """
+# print(decisive_nodes)

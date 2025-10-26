@@ -1,103 +1,121 @@
 import pandas as pd
 import numpy as np
-import Graph
-from typing import Dict, Tuple, List
+from src.adjacency_matrix import AdjacencyMatrix 
+from typing import Tuple, List
 import random 
 
 class NetworkSolution:
     """
-    Represents a network solution structure for optimization heuristics,
-    such as simulated annealing or threshold-based algorithms.
+    Representa una estructura de solución de red para heurísticas de optimización,
+    como 'simulated annealing' o algoritmos basados en umbral.
     """
 
     def __init__(self,
-                 graph: Graph,
+                 graph: AdjacencyMatrix,
+                 generator,
+                 load
                  ):
         """
-        Initialize the network solution using a vertex dictionary, numeric and boolean matrices,
-        and a normalization coefficient.
-
-        Args:
-            vertices (Dict): Dictionary of vertex tuples.
-            matrix_b (np.ndarray): NxN float matrix (suspect, modified_suspect, is_graph).
-            matrix_character_b (np.ndarray): NxN boolean matrix.
-            alpha (float): Normalization factor.
+        Inicializa la solución de red.
         """
+        print("--- [Solution] Iniciando NetworkSolution __init__ ---")
         self.graph = graph
-        self.graph.original = graph 
-        self.size = graph.getN_buses()
+        self.graph_original = graph 
+        self.generator = generator
+        self.load = load
+        self.size = graph.get_n_buses()
 
-        # Normalization coefficient
-        self.normalize = self.size * self.size * 10
-        self.cost = -1.0
+        # --- CAMBIO: Usar np.float64 para el coeficiente y el costo inicial ---
+        self.normalize = np.float64(self.size * self.size * 10)
+        # Usamos -1.0 como bandera para indicar que el costo no ha sido calculado
+        self.cost = np.float64(-1.0) 
         
-    def neighbour(self, rng: random.Random) -> List[Tuple[int, float, int, int, Tuple[float,float]]]:
-        """
-        Generate a neighboring solution (remove_node, new_cost, neighborA_index, neighborB_index, suspect_A_B)
-        by applying a small random modification to the current network configuration.
-        """
-        neighbour = [-1, -1.0, -1, -1, -1.0]
-        size = self.size
+        # Esto calculará el costo inicial la primera vez que se llame
+        self.get_cost() 
+        print(f"... [Solution] Costo inicial calculado: {self.cost}")
         
-        #Nodo a eliminar
+    def neighbour(self, rng: random.Random, ) -> List:
+        """
+        Genera una solución vecina (remove_node, new_cost, neighborA_index, neighborB_index, suspect_A_B)
+        calculando el costo de forma incremental (O(1)).
+        """
+        # --- CAMBIO: Usar np.float64 para los valores por defecto ---
+        neighbour = [-1, np.float64(-1.0), -1, -1, (np.float64(-1.0), np.float64(-1.0))]
+        
+        # Nodo a eliminar
         C = self.get_random_node(rng)
 
-        if self.graph.is_important(C) and self.graph.get_grade_by_node(C) != 2 and not(self.is_node_nin_graph(C)):
-            return neighbour
+        if self.graph.is_decisive_branch(self.generator, self.load, C) or \
+           self.graph.get_grade_by_node(C) != 2 or \
+           self.is_node_nin_graph(C):
+            return neighbour # Retorna un vecino inválido
     
-        neighbour_c = self.graph.get_vecino_by_node(C)
+        neighbour_c = self.graph.get_neighbors_by_node(C)
         
         A = neighbour_c[0]
         B = neighbour_c[1]
 
-        #Caracterizacion de los nodos A,B,C y guardarlos
+        # --- Lectura de valores actuales (ya son np.float64 de la matriz) ---
         characterized_A_C = [self.get_b(A,C), self.get_b_prime(A,C)]
         characterized_B_C = [self.get_b(B,C), self.get_b_prime(B,C)]
         characterized_A_B = [self.get_b(A,B), self.get_b_prime(A,B)]
 
-        # Reactancia de A-C y B-C
-        reactancia_A_C = 1 / characterized_A_C[0]
-        reactancia_B_C = 1 / characterized_B_C[0]
-        reactancia_A_B = 1 / characterized_A_B[0]
+        # --- CAMBIO: Usar np.inf y np.float64 ---
+        reactancia_A_C = 1 / characterized_A_C[0] if characterized_A_C[0] != 0 else np.inf
+        reactancia_B_C = 1 / characterized_B_C[0] if characterized_B_C[0] != 0 else np.inf
+        reactancia_A_B = 1 / characterized_A_B[0] if characterized_A_B[0] != 0 else np.float64(0.0)
 
-        # Calculamos el nuevo suspect A y B dado C: B_ab = x_ab+x_ac+x_bc
-        suspect_A_B = [1/(reactancia_A_C + reactancia_B_C + reactancia_A_B) + characterized_A_B[1],0]
-        # Calculamos el nuevo B' de A y B
+        sum_reactancias = reactancia_A_C + reactancia_B_C + reactancia_A_B
+        
+        # --- CAMBIO: Usar np.isinf para la comprobación ---
+        if np.isinf(sum_reactancias):
+            new_b_AB = np.float64(0.0) 
+        else:
+            new_b_AB = 1 / sum_reactancias
+        
+        # --- CAMBIO: Usar np.float64 ---
+        suspect_A_B = [new_b_AB + characterized_A_B[1], np.float64(0.0)]
         suspect_A_B[1] = -suspect_A_B[0]
 
-        # Actualizamos matrix (simulacion de quitar branch)
-        self.set_branch(A,C,[0.0,0.0])
-        self.set_branch(B,C,[0.0,0.0])
-        self.set_branch(A,B,suspect_A_B)
+        # --- CÁLCULO DE COSTO INCREMENTAL (O(1)) ---
+        
+        b_orig_AC = self.get_b_original(A,C)
+        b_orig_BC = self.get_b_original(B,C)
+        b_orig_AB = self.get_b_original(A,B)
 
-        diagonal = self.get_b_prime(C,C)
-        self.graph.set_branch_prime(C,C,(
-            diagonal - (characterized_A_C[1] + characterized_A_B[0] + characterized_B_C[0]) + suspect_A_B[0]
-        ))
+        cost_before_change = abs(characterized_A_C[0] - b_orig_AC) + \
+                             abs(characterized_B_C[0] - b_orig_BC) + \
+                             abs(characterized_A_B[0] - b_orig_AB)
 
-        old_cost = self.cost
-        new_cost = self.get_cost()
-
-        neighbour = [C, new_cost, A,B,suspect_A_B]
-
-        self.cost = old_cost
-        self.set_branch(A,C,characterized_A_C)
-        self.set_branch(A,B,characterized_A_B)
-        self.set_branch(B,C,characterized_B_C)
+        # --- ¡¡¡BUG CRÍTICO CORREGIDO!!! ---
+        # Faltaban los términos de A-C y B-C, que se vuelven 0.0
+        cost_after_change = abs(np.float64(0.0) - b_orig_AC) + \
+                            abs(np.float64(0.0) - b_orig_BC) + \
+                            abs(suspect_A_B[0] - b_orig_AB)
+            
+        delta_cost = (cost_after_change - cost_before_change) / self.normalize
+        new_cost = self.cost + delta_cost
+        
+        # Llenamos la información del vecino
+        neighbour = [C, new_cost, A, B, suspect_A_B]
 
         return neighbour
 
-    def get_b_prime(self, nodeA: int, nodeB: int) -> float:
-        return self.graph.get_branch(nodeA, nodeB)[0]
+    def get_b_prime(self, nodeA: int, nodeB: int) -> np.float64:
+        return self.graph.get_branch_prime(nodeA, nodeB)
     
-    def get_b(self, nodeA: int, nodeB: int) -> float:
-        return self.graph.get_branch(nodeA, nodeB)[0]
+    def get_b(self, nodeA: int, nodeB: int) -> np.float64:
+        return self.graph.get_branch(nodeA, nodeB)
     
-    def get_b_original(self, nodeA: int, nodeB: int) -> float:
-        return self.graph_original.get_branch(nodeA,nodeB)[0]
+    def get_b_original(self, nodeA: int, nodeB: int) -> np.float64:
+        return self.graph_original.get_branch(nodeA,nodeB)
     
     def get_random_node(self, rng : random.Random) -> int:
-        return self.graph.get_node_by_index(rng.randint(0,self.size))
+        """
+        Obtiene un ID de bus aleatorio de la red.
+        """
+        random_index = rng.randint(0, self.size - 1)
+        return self.graph.buses[random_index]
     
     def set_branch(self, nodeA :int, nodeB : int, branch: Tuple[float,float]):
         self.graph.set_branch(nodeA,nodeB,branch[0])
@@ -107,12 +125,10 @@ class NetworkSolution:
         return self.graph.get_grade_by_node(node) == 0
 
     
-    def update(self, neighbour : list[int,float, int, int,float]):
+    def update(self, neighbour : list):
         """
-        Update the state of a specific vertex or the normalization factor
-        depending on the provided parameters.
-
-        where neighbour = [C,new_cost,A,B,B_ab]
+        Actualiza el estado de la red basado en el vecino aceptado.
+        donde neighbour = [C,new_cost,A,B,B_ab]
         """
         
         A = neighbour[2]
@@ -120,27 +136,44 @@ class NetworkSolution:
         C = neighbour[0]
         suspect_A_B = neighbour[4]
 
-        self.set_branch(A,C,[0.0,0.0])
-        self.set_branch(B,C,[0.0,0.0])
+        # --- CAMBIO: Usar np.float64 para los valores cero ---
+        zero_branch = (np.float64(0.0), np.float64(0.0))
+        self.set_branch(A,C, zero_branch)
+        self.set_branch(B,C, zero_branch)
+        
         self.set_branch(A,B,suspect_A_B)
 
         self.cost = neighbour[1]
 
-    def get_cost(self) -> float:
-        """
-        Compute and return the total cost (e.g., energy, distance, or impedance)
-        of the current network configuration.
-        """
 
-        difference = 0.0
-        for i in range(self.size):
-            for j in range(self.size):
-                if self.get_b(i,j) == 0:
-                    continue
+    def get_cost(self) -> np.float64:
+        """
+        Devuelve el costo actual.
+        Calcula el costo desde cero si es la primera vez que se llama.
+        """
+        # --- ¡¡¡BUG CRÍTICO CORREGIDO!!! ---
+        # La lógica estaba invertida. 
+        # Debe calcular si el costo es igual a la bandera (-1.0).
+        if self.cost == -1.0:
+            self.calculate_cost()
 
-                difference += abs(self.get_b(i,j) - self.get_b_original(i,j))
-    
-        self.cost = difference/self.normalize
         return self.cost
 
+    def calculate_cost(self) -> np.float64:
+        """
+        Calcula el costo total desde cero O(m) usando matrices dispersas.
+        """
+        try:
+            matrix_current = self.graph.get_matrix_csr()
+            matrix_original = self.graph_original.get_matrix_csr()
+        except AttributeError:
+            matrix_current = self.graph.matrix.tocsr()
+            matrix_original = self.graph_original.matrix.tocsr()
 
+        diff_matrix = matrix_current - matrix_original
+        
+        # .data ya es un array de numpy, .sum() y np.abs() son eficientes
+        difference = np.sum(np.abs(diff_matrix.data))
+    
+        self.cost = difference / self.normalize
+        return self.cost

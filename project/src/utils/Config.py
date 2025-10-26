@@ -27,6 +27,7 @@ class Config:
             self.size_lote = int(os.environ['SIZE_LOTE'])
             self.limit = int(os.environ['LIMIT'])
             self.n = int(os.environ['N'])
+            self.seed = int(os.environ['SEED'])
         
         except KeyError as e:
             # Se produce si una variable clave no se encuentra en el .env
