@@ -3,6 +3,7 @@ import pandas as pd
 from scipy import sparse
 
 class AdjacencyMatrix:
+
     def __init__(self, df):
         self.df = df.copy()
         self.susceptance_collapsed = self._collapsing_multiedges(self.df)
@@ -40,6 +41,18 @@ class AdjacencyMatrix:
         
         return matrix_coo.tocsr()
     
+    def index_to_bus(self, index):
+        """Convierte un índice de la matriz a su bus correspondiente."""
+        if index < 0 or index >= self.n_buses:
+            raise IndexError(f"Índice {index} fuera de rango [0, {self.n_buses-1}]")
+        return self.buses[index]
+    
+    def get_bus_index(self, bus):
+        """Convierte un bus a su índice correspondiente en la matriz."""
+        if bus not in self.bus_to_index:
+            raise KeyError(f"Bus {bus} no encontrado en la red")
+        return self.bus_to_index[bus]
+    
     def print_matrix_info(self):
         """Imprime información útil sin cargar toda la matriz"""
         print(f"Dimensiones: {self.matrix.shape}")
@@ -59,48 +72,25 @@ class AdjacencyMatrix:
                         index=bus_list, 
                         columns=bus_list)
         print(df)
-
-    def get_bus(self, idx):
-        """
-        Retorna el bus correspondiente a un índice.
-        
-        Parameters:
-        -----------
-        idx : int
-            Índice del bus
-            
-        Returns:
-        --------
-        bus : int/str
-            Identificador del bus
-        """
-        if idx < 0 or idx >= self.n_buses:
-            raise IndexError(f"Índice {idx} fuera de rango [0, {self.n_buses-1}]")
-        return self.buses[idx]
     
-    def get_value(self, idx1, idx2):
-        """
-        Retorna el valor de susceptancia entre dos buses dados sus índices.
-        
-        Parameters:
-        -----------
-        idx1 : int
-            Índice del primer bus
-        idx2 : int
-            Índice del segundo bus
+    def get_susceptance(self, idx1, idx2):
+        # Parameters:
+        # -----------
+        # idx1 : int
+        #     Índice del primer bus
+        # idx2 : int
+        #     Índice del segundo bus
             
-        Returns:
-        --------
-        float
-            Valor de susceptancia. Retorna 0 si no hay conexión.
-        """
+        # Returns:
+        # --------
+        # float
+        #     susceptance value.
         if idx1 < 0 or idx1 >= self.n_buses or idx2 < 0 or idx2 >= self.n_buses:
             raise IndexError(f"Índices fuera de rango [0, {self.n_buses-1}]")
         
         return self.matrix[idx1, idx2]
 
     def get_bus_from_index(self, idx):
-        """Acceso inverso sin diccionario adicional"""
         return self.buses[idx]
 
     def get_buses(self):
@@ -117,18 +107,17 @@ class AdjacencyMatrix:
         """
         return sorted(pd.concat([self.df['from_bus'], self.df['to_bus']]).unique())
     
-    def _create_bus_to_idx(self):
-        """
-        Create a dictionary mapping bus IDs to matrix indices.
+    # def _create_bus_to_idx(self):
+    #     """
+    #     Create a dictionary mapping bus IDs to matrix indices.
         
-        Returns:
-        --------
-        dict
-            Dictionary {bus_id: matrix_index}
-        """
-        # print(idx for idx, bus in enumerate(self.buses))
-
-        return {bus: idx for idx, bus in enumerate(self.buses)}
+    #     Returns:
+    #     --------
+    #     dict
+    #         Dictionary {bus_id: matrix_index}
+    #     """
+    #     # print(idx for idx, bus in enumerate(self.buses))
+    #     return {bus: idx for idx, bus in enumerate(self.buses)}
     
     def get_matrix(self):
         """Return the susceptance matrix."""
@@ -148,21 +137,21 @@ class AdjacencyMatrix:
         """Return the list of buses."""
         return [int(bus) for bus in self.buses]
     
-    def get_bus_index(self, bus_id):
-        """
-        Get the matrix index for a given bus ID.
+    # def get_bus_index(self, bus_id):
+    #     """
+    #     Get the matrix index for a given bus ID.
         
-        Parameters:
-        -----------
-        bus_id : int
-            Bus ID
+    #     Parameters:
+    #     -----------
+    #     bus_id : int
+    #         Bus ID
             
-        Returns:
-        --------
-        int
-            Matrix index for the bus
-        """
-        return self.bus_to_idx.get(bus_id)
+    #     Returns:
+    #     --------
+    #     int
+    #         Matrix index for the bus
+    #     """
+    #     return self.bus_to_idx.get(bus_id)
     
     def get_branch_info(self, bus_from, bus_to):
         """
