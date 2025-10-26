@@ -95,7 +95,7 @@ class NetworkSolution:
         delta_cost = (cost_after_change - cost_before_change)
         original_difference_size = self.size / self.size_original
         self.size-=1
-        new_cost = self.cost + delta_cost - original_difference_size + self.size/self.original_size
+        new_cost = self.cost + delta_cost - original_difference_size + self.size/self.size_original
         self.size+=1
         
         # Llenamos la información del vecino
